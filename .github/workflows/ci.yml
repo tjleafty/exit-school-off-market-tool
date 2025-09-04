@@ -17,7 +17,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
 
     - name: Install dependencies
@@ -27,7 +27,7 @@ jobs:
       run: npm run lint
 
     - name: Run type check
-      run: npx tsc --noEmit
+      run: npm run type-check
 
     - name: Run tests
       run: npm test
@@ -40,6 +40,16 @@ jobs:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
+    # Run Supabase migrations
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+
+    - name: Run Supabase migrations
+      run: supabase db push --db-url ${{ secrets.SUPABASE_DB_URL }}
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
   security-check:
     runs-on: ubuntu-latest
     
@@ -50,7 +60,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
 
     - name: Install dependencies
