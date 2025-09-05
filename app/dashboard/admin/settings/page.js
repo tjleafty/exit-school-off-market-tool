@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function SystemSettingsPage() {
   const [apiKeys, setApiKeys] = useState({
@@ -12,6 +12,19 @@ export default function SystemSettingsPage() {
     zoominfo: { value: '', status: 'Not Connected' },
     resend: { value: '', status: 'Not Connected' },
   })
+
+  // Load saved API keys on component mount
+  useEffect(() => {
+    const savedApiKeys = localStorage.getItem('exit-school-api-keys')
+    if (savedApiKeys) {
+      try {
+        const parsed = JSON.parse(savedApiKeys)
+        setApiKeys(parsed)
+      } catch (error) {
+        console.error('Error loading saved API keys:', error)
+      }
+    }
+  }, [])
 
   const [activeTab, setActiveTab] = useState('apis')
   const [testingApi, setTestingApi] = useState(null)
@@ -68,27 +81,65 @@ export default function SystemSettingsPage() {
     // Simulate API test
     setTimeout(() => {
       const success = Math.random() > 0.3 // 70% success rate for demo
-      setApiKeys(prev => ({
-        ...prev,
+      const updatedApiKeys = {
+        ...apiKeys,
         [api]: {
-          ...prev[api],
+          ...apiKeys[api],
           status: success ? 'Connected' : 'Connection Failed'
         }
-      }))
+      }
+      
+      setApiKeys(updatedApiKeys)
+      localStorage.setItem('exit-school-api-keys', JSON.stringify(updatedApiKeys))
       setTestingApi(null)
     }, 2000)
   }
 
   const saveApiKey = (api) => {
-    // In real app, this would save to database/environment
-    console.log(`Saving ${api} API key:`, apiKeys[api].value)
-    // Show success message
+    // Save to localStorage for persistence
+    const updatedApiKeys = {
+      ...apiKeys,
+      [api]: {
+        ...apiKeys[api],
+        status: apiKeys[api].value ? 'Saved' : 'Not Connected'
+      }
+    }
+    
+    setApiKeys(updatedApiKeys)
+    localStorage.setItem('exit-school-api-keys', JSON.stringify(updatedApiKeys))
+    
+    console.log(`Saved ${api} API key successfully`)
+    
+    // Show temporary success message
+    setTimeout(() => {
+      setApiKeys(prev => ({
+        ...prev,
+        [api]: {
+          ...prev[api],
+          status: prev[api].value ? 'Saved' : 'Not Connected'
+        }
+      }))
+    }, 2000)
+  }
+
+  const clearApiKey = (api) => {
+    const updatedApiKeys = {
+      ...apiKeys,
+      [api]: {
+        value: '',
+        status: 'Not Connected'
+      }
+    }
+    
+    setApiKeys(updatedApiKeys)
+    localStorage.setItem('exit-school-api-keys', JSON.stringify(updatedApiKeys))
   }
 
   const getStatusColor = (status) => {
     switch(status) {
       case 'Connected': return 'text-green-600 bg-green-50'
       case 'Connection Failed': return 'text-red-600 bg-red-50'
+      case 'Saved': return 'text-blue-600 bg-blue-50'
       default: return 'text-gray-600 bg-gray-50'
     }
   }
@@ -97,6 +148,7 @@ export default function SystemSettingsPage() {
     switch(status) {
       case 'Connected': return '✅'
       case 'Connection Failed': return '❌'
+      case 'Saved': return '💾'
       default: return '⚪'
     }
   }
@@ -203,6 +255,15 @@ export default function SystemSettingsPage() {
                     >
                       {testingApi === key ? 'Testing...' : 'Test'}
                     </button>
+                    {apiKeys[key].value && (
+                      <button
+                        onClick={() => clearApiKey(key)}
+                        className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                        title="Clear API Key"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
