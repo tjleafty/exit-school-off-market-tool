@@ -1,0 +1,282 @@
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+
+export default function SystemSettingsPage() {
+  const [apiKeys, setApiKeys] = useState({
+    openai: { value: '', status: 'Not Connected' },
+    google_places: { value: '', status: 'Not Connected' },
+    hunter: { value: '', status: 'Not Connected' },
+    apollo: { value: '', status: 'Not Connected' },
+    zoominfo: { value: '', status: 'Not Connected' },
+    resend: { value: '', status: 'Not Connected' },
+  })
+
+  const [activeTab, setActiveTab] = useState('apis')
+  const [testingApi, setTestingApi] = useState(null)
+
+  const apiConfigs = {
+    openai: {
+      name: 'OpenAI API',
+      description: 'AI-powered company analysis and report generation',
+      placeholder: 'sk-...',
+      docs: 'https://platform.openai.com/docs'
+    },
+    google_places: {
+      name: 'Google Places API',
+      description: 'Company location data and business information',
+      placeholder: 'AIza...',
+      docs: 'https://developers.google.com/maps/documentation/places/web-service'
+    },
+    hunter: {
+      name: 'Hunter.io API',
+      description: 'Email finding and verification services',
+      placeholder: 'hunter-api-key...',
+      docs: 'https://hunter.io/api-documentation'
+    },
+    apollo: {
+      name: 'Apollo.io API',
+      description: 'B2B contact and company database',
+      placeholder: 'apollo-key...',
+      docs: 'https://apolloio.github.io/apollo-api-docs/'
+    },
+    zoominfo: {
+      name: 'ZoomInfo API',
+      description: 'Business intelligence and contact data',
+      placeholder: 'zi-api-key...',
+      docs: 'https://api-docs.zoominfo.com/'
+    },
+    resend: {
+      name: 'Resend API',
+      description: 'Email delivery and automation',
+      placeholder: 're_...',
+      docs: 'https://resend.com/docs'
+    }
+  }
+
+  const handleApiKeyChange = (api, value) => {
+    setApiKeys(prev => ({
+      ...prev,
+      [api]: { ...prev[api], value }
+    }))
+  }
+
+  const testApiConnection = async (api) => {
+    setTestingApi(api)
+    
+    // Simulate API test
+    setTimeout(() => {
+      const success = Math.random() > 0.3 // 70% success rate for demo
+      setApiKeys(prev => ({
+        ...prev,
+        [api]: {
+          ...prev[api],
+          status: success ? 'Connected' : 'Connection Failed'
+        }
+      }))
+      setTestingApi(null)
+    }, 2000)
+  }
+
+  const saveApiKey = (api) => {
+    // In real app, this would save to database/environment
+    console.log(`Saving ${api} API key:`, apiKeys[api].value)
+    // Show success message
+  }
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Connected': return 'text-green-600 bg-green-50'
+      case 'Connection Failed': return 'text-red-600 bg-red-50'
+      default: return 'text-gray-600 bg-gray-50'
+    }
+  }
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'Connected': return '✅'
+      case 'Connection Failed': return '❌'
+      default: return '⚪'
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <Link href="/dashboard/admin" className="text-blue-600 hover:text-blue-500 mr-4">
+                ← Back to Admin
+              </Link>
+              <h1 className="text-xl font-semibold">System Settings</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                Administrator
+              </span>
+              <Link href="/" className="text-gray-500 hover:text-gray-700">
+                Sign out
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">System Configuration</h2>
+            <p className="text-gray-600">Manage API connections and system settings</p>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-8">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('apis')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'apis'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                API Connections
+              </button>
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'general'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                General Settings
+              </button>
+            </nav>
+          </div>
+
+          {/* API Connections Tab */}
+          {activeTab === 'apis' && (
+            <div className="space-y-6">
+              {Object.entries(apiConfigs).map(([key, config]) => (
+                <div key={key} className="bg-white shadow rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <h3 className="text-lg font-medium text-gray-900">{config.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(apiKeys[key].status)}`}>
+                        {getStatusIcon(apiKeys[key].status)} {apiKeys[key].status}
+                      </span>
+                    </div>
+                    <a 
+                      href={config.docs} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-500 text-sm"
+                    >
+                      View Docs →
+                    </a>
+                  </div>
+                  
+                  <p className="text-gray-600 mb-4">{config.description}</p>
+                  
+                  <div className="flex space-x-3">
+                    <input
+                      type="password"
+                      placeholder={config.placeholder}
+                      value={apiKeys[key].value}
+                      onChange={(e) => handleApiKeyChange(key, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => saveApiKey(key)}
+                      disabled={!apiKeys[key].value}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => testApiConnection(key)}
+                      disabled={!apiKeys[key].value || testingApi === key}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {testingApi === key ? 'Testing...' : 'Test'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* General Settings Tab */}
+          {activeTab === 'general' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-6">General Settings</h3>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Platform Name
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue="Exit School Off-Market Tool"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default Search Results Limit
+                  </label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="25">25 results</option>
+                    <option value="50" selected>50 results</option>
+                    <option value="100">100 results</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Auto-Enrichment
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <input type="checkbox" className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                    <span className="text-sm text-gray-700">Automatically enrich new companies when discovered</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    User Registration
+                  </label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-3">
+                      <input type="radio" name="registration" value="admin" className="h-4 w-4 text-blue-600 focus:ring-blue-500" defaultChecked />
+                      <span className="text-sm text-gray-700">Admin approval required</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input type="radio" name="registration" value="auto" className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-sm text-gray-700">Auto-approve new users</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <input type="radio" name="registration" value="disabled" className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-sm text-gray-700">Disable registration</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Save Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
