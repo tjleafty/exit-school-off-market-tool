@@ -34,13 +34,13 @@ export default function DashboardPage() {
                 B2B Intelligence Platform for company discovery, data enrichment, and automated outreach
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+                <Link href="/dashboard/company-discovery" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow cursor-pointer">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                          <span className="text-white text-sm font-medium">1</span>
+                          <span className="text-white text-sm font-medium">🔍</span>
                         </div>
                       </div>
                       <div className="ml-5 w-0 flex-1">
@@ -49,20 +49,20 @@ export default function DashboardPage() {
                             Company Discovery
                           </dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            Ready
+                            Search & Find
                           </dd>
                         </dl>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
 
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+                <Link href="/dashboard/data-enrichment" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow cursor-pointer">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
-                          <span className="text-white text-sm font-medium">2</span>
+                          <span className="text-white text-sm font-medium">📊</span>
                         </div>
                       </div>
                       <div className="ml-5 w-0 flex-1">
@@ -71,20 +71,20 @@ export default function DashboardPage() {
                             Data Enrichment
                           </dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            Ready
+                            Enhance Data
                           </dd>
                         </dl>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
 
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+                <Link href="/dashboard/email-automation" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow cursor-pointer">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
                         <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
-                          <span className="text-white text-sm font-medium">3</span>
+                          <span className="text-white text-sm font-medium">✉️</span>
                         </div>
                       </div>
                       <div className="ml-5 w-0 flex-1">
@@ -93,13 +93,35 @@ export default function DashboardPage() {
                             Email Automation
                           </dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            Ready
+                            Send Campaigns
                           </dd>
                         </dl>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
+
+                <Link href="/dashboard/users" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow cursor-pointer">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center">
+                          <span className="text-white text-sm font-medium">👥</span>
+                        </div>
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">
+                            User Management
+                          </dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            Manage Users
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
               </div>
             </div>
           </div>
