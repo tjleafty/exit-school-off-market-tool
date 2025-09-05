@@ -19,7 +19,7 @@ export default function Home() {
             Exit School Off-Market Tool
           </h1>
           <p className="text-gray-600 mb-8">
-            B2B Intelligence Platform - Ready to Deploy!
+            B2B Intelligence Platform - Authentication System Live!
           </p>
         </div>
         
