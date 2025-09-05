@@ -4,19 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
 export default function AdminUserManagementPage() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'System Administrator',
-      email: 'admin@exitschool.com',
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      joinDate: '2025-01-01',
-      lastLogin: '2025-01-05',
-      createdBy: 'System',
-      method: 'SYSTEM'
-    }
-  ])
+  const [users, setUsers] = useState([])
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -33,14 +21,36 @@ export default function AdminUserManagementPage() {
 
   // Load users from localStorage on component mount
   useEffect(() => {
+    const defaultSystemUser = {
+      id: 1,
+      name: 'System Administrator',
+      email: 'admin@exitschool.com',
+      role: 'ADMIN',
+      status: 'ACTIVE',
+      joinDate: '2025-01-01',
+      lastLogin: '2025-01-05',
+      createdBy: 'System',
+      method: 'SYSTEM'
+    }
+
     const savedUsers = localStorage.getItem('exit-school-users')
     if (savedUsers) {
       try {
         const parsed = JSON.parse(savedUsers)
-        setUsers(parsed)
+        // Ensure system user is always present
+        const hasSystemUser = parsed.some(user => user.method === 'SYSTEM')
+        if (!hasSystemUser) {
+          setUsers([defaultSystemUser, ...parsed])
+        } else {
+          setUsers(parsed)
+        }
       } catch (error) {
         console.error('Error loading saved users:', error)
+        setUsers([defaultSystemUser])
       }
+    } else {
+      // No saved users, use default system user
+      setUsers([defaultSystemUser])
     }
   }, [])
 
