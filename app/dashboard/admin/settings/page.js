@@ -83,7 +83,7 @@ export default function SystemSettingsPage() {
   const handleApiKeyChange = (api, value) => {
     setApiKeys(prev => ({
       ...prev,
-      [api]: { ...prev[api], value }
+      [api]: { ...prev[api] || { value: '', status: 'Not Connected' }, value }
     }))
   }
 
@@ -96,7 +96,7 @@ export default function SystemSettingsPage() {
       const updatedApiKeys = {
         ...apiKeys,
         [api]: {
-          ...apiKeys[api],
+          ...apiKeys[api] || { value: '', status: 'Not Connected' },
           status: success ? 'Connected' : 'Connection Failed'
         }
       }
@@ -112,8 +112,8 @@ export default function SystemSettingsPage() {
     const updatedApiKeys = {
       ...apiKeys,
       [api]: {
-        ...apiKeys[api],
-        status: apiKeys[api].value ? 'Saved' : 'Not Connected'
+        ...apiKeys[api] || { value: '', status: 'Not Connected' },
+        status: apiKeys[api]?.value ? 'Saved' : 'Not Connected'
       }
     }
     
@@ -229,8 +229,8 @@ export default function SystemSettingsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <h3 className="text-lg font-medium text-gray-900">{config.name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(apiKeys[key].status)}`}>
-                        {getStatusIcon(apiKeys[key].status)} {apiKeys[key].status}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(apiKeys[key]?.status || 'Not Connected')}`}>
+                        {getStatusIcon(apiKeys[key]?.status || 'Not Connected')} {apiKeys[key]?.status || 'Not Connected'}
                       </span>
                     </div>
                     <a 
@@ -249,25 +249,25 @@ export default function SystemSettingsPage() {
                     <input
                       type="password"
                       placeholder={config.placeholder}
-                      value={apiKeys[key].value}
+                      value={apiKeys[key]?.value || ''}
                       onChange={(e) => handleApiKeyChange(key, e.target.value)}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={() => saveApiKey(key)}
-                      disabled={!apiKeys[key].value}
+                      disabled={!apiKeys[key]?.value}
                       className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Save
                     </button>
                     <button
                       onClick={() => testApiConnection(key)}
-                      disabled={!apiKeys[key].value || testingApi === key}
+                      disabled={!apiKeys[key]?.value || testingApi === key}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {testingApi === key ? 'Testing...' : 'Test'}
                     </button>
-                    {apiKeys[key].value && (
+                    {apiKeys[key]?.value && (
                       <button
                         onClick={() => clearApiKey(key)}
                         className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
