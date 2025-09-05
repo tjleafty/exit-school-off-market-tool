@@ -4,26 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 
 export default function DataEnrichmentPage() {
-  const [companies] = useState([
-    {
-      id: 1,
-      name: 'TechStart Inc.',
-      email: 'contact@techstart.com',
-      phone: '+1 (555) 123-4567',
-      website: 'www.techstart.com',
-      enriched: true,
-      lastUpdated: '2025-01-05'
-    },
-    {
-      id: 2,
-      name: 'DataFlow Solutions',
-      email: 'info@dataflow.com',
-      phone: 'Not found',
-      website: 'www.dataflow.com',
-      enriched: false,
-      lastUpdated: '2025-01-03'
-    }
-  ])
+  const [companies] = useState([])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -120,42 +101,50 @@ export default function DataEnrichmentPage() {
               </button>
             </div>
             
-            <ul className="divide-y divide-gray-200">
-              {companies.map((company) => (
-                <li key={company.id} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
-                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                          company.enriched 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {company.enriched ? 'Enriched' : 'Pending'}
-                        </span>
+            {companies.length > 0 ? (
+              <ul className="divide-y divide-gray-200">
+                {companies.map((company) => (
+                  <li key={company.id} className="px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
+                          <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                            company.enriched 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {company.enriched ? 'Enriched' : 'Pending'}
+                          </span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>📧 {company.email}</div>
+                          <div>📞 {company.phone}</div>
+                          <div>🌐 {company.website}</div>
+                          <div>📅 Updated: {company.lastUpdated}</div>
+                        </div>
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div>📧 {company.email}</div>
-                        <div>📞 {company.phone}</div>
-                        <div>🌐 {company.website}</div>
-                        <div>📅 Updated: {company.lastUpdated}</div>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      {!company.enriched && (
-                        <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
-                          Enrich Now
+                      <div className="flex space-x-2">
+                        {!company.enriched && (
+                          <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
+                            Enrich Now
+                          </button>
+                        )}
+                        <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
+                          View Details
                         </button>
-                      )}
-                      <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
-                        View Details
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-6 py-12 text-center">
+                <div className="text-gray-400 text-6xl mb-4">📊</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Data to Enrich</h3>
+                <p className="text-gray-600">Companies discovered through search will appear here for data enrichment.</p>
+              </div>
+            )}
           </div>
         </div>
       </main>

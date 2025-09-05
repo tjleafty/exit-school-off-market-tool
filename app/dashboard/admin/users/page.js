@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-export default function UserManagementPage() {
+export default function AdminUserManagementPage() {
   const [users] = useState([
     {
       id: 1,
@@ -13,26 +13,25 @@ export default function UserManagementPage() {
       status: 'ACTIVE',
       joinDate: '2025-01-01',
       lastLogin: '2025-01-05'
-    },
-    {
-      id: 2,
-      name: 'John Smith',
-      email: 'john@example.com',
-      role: 'USER',
-      status: 'PENDING',
-      joinDate: '2025-01-03',
-      lastLogin: 'Never'
-    },
-    {
-      id: 3,
-      name: 'Sarah Johnson',
-      email: 'sarah@company.com',
-      role: 'USER',
-      status: 'ACTIVE',
-      joinDate: '2025-01-02',
-      lastLogin: '2025-01-04'
     }
   ])
+
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    role: 'USER',
+    sendInvite: true
+  })
+
+  const handleCreateUser = (e) => {
+    e.preventDefault()
+    // In real app, this would call an API to create the user
+    console.log('Creating user:', newUser)
+    setShowCreateForm(false)
+    setNewUser({ name: '', email: '', role: 'USER', sendInvite: true })
+    // Show success message, refresh user list, etc.
+  }
 
   const getStatusBadge = (status) => {
     const colors = {
@@ -57,14 +56,14 @@ export default function UserManagementPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link href="/dashboard" className="text-blue-600 hover:text-blue-500 mr-4">
-                ← Back to Dashboard
+              <Link href="/dashboard/admin" className="text-blue-600 hover:text-blue-500 mr-4">
+                ← Back to Admin
               </Link>
               <h1 className="text-xl font-semibold">User Management</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Admin
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                Administrator
               </span>
               <Link href="/" className="text-gray-500 hover:text-gray-700">
                 Sign out
@@ -76,10 +75,86 @@ export default function UserManagementPage() {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-            <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+              <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
+            </div>
+            <button 
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Add User
+            </button>
           </div>
+
+          {/* Create User Modal */}
+          {showCreateForm && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New User</h3>
+                <form onSubmit={handleCreateUser}>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={newUser.name}
+                        onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={newUser.email}
+                        onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Role</label>
+                      <select
+                        value={newUser.role}
+                        onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="USER">User</option>
+                        <option value="ADMIN">Administrator</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={newUser.sendInvite}
+                        onChange={(e) => setNewUser({...newUser, sendInvite: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 text-sm text-gray-700">Send invitation email</label>
+                    </div>
+                  </div>
+                  <div className="flex space-x-3 mt-6">
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Create User
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateForm(false)}
+                      className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -120,21 +195,6 @@ export default function UserManagementPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {user.status === 'PENDING' && (
-                        <>
-                          <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
-                            Approve
-                          </button>
-                          <button className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700">
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      {user.status === 'ACTIVE' && user.role !== 'ADMIN' && (
-                        <button className="px-3 py-1 bg-gray-600 text-white text-xs font-medium rounded hover:bg-gray-700">
-                          Disable
-                        </button>
-                      )}
                       <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
                         Edit
                       </button>

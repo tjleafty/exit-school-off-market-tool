@@ -5,26 +5,20 @@ import { useState } from 'react'
 
 export default function CompanyDiscoveryPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [results] = useState([
-    {
-      id: 1,
-      name: 'TechStart Inc.',
-      industry: 'SaaS',
-      location: 'San Francisco, CA',
-      employees: '50-100',
-      revenue: '$5M-$10M',
-      stage: 'Series A'
-    },
-    {
-      id: 2,
-      name: 'DataFlow Solutions',
-      industry: 'Analytics',
-      location: 'Austin, TX',
-      employees: '25-50',
-      revenue: '$1M-$5M',
-      stage: 'Seed'
-    }
-  ])
+  const [results, setResults] = useState([])
+  const [isSearching, setIsSearching] = useState(false)
+
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return
+    
+    setIsSearching(true)
+    // In real app, this would call your search API
+    setTimeout(() => {
+      setIsSearching(false)
+      // For now, show no results until real search is implemented
+      setResults([])
+    }, 1000)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -65,8 +59,12 @@ export default function CompanyDiscoveryPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <button className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Search
+              <button 
+                onClick={handleSearch}
+                disabled={isSearching}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isSearching ? 'Searching...' : 'Search'}
               </button>
             </div>
           </div>
@@ -74,35 +72,43 @@ export default function CompanyDiscoveryPage() {
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Search Results ({results.length})
+                Search Results
               </h3>
             </div>
             
-            <ul className="divide-y divide-gray-200">
-              {results.map((company) => (
-                <li key={company.id} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
-                      <p className="text-sm text-gray-600">{company.industry} • {company.location}</p>
-                      <div className="mt-2 flex space-x-4 text-sm text-gray-500">
-                        <span>👥 {company.employees} employees</span>
-                        <span>💰 {company.revenue} revenue</span>
-                        <span>🚀 {company.stage}</span>
+            {results.length > 0 ? (
+              <ul className="divide-y divide-gray-200">
+                {results.map((company) => (
+                  <li key={company.id} className="px-6 py-4 hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
+                        <p className="text-sm text-gray-600">{company.industry} • {company.location}</p>
+                        <div className="mt-2 flex space-x-4 text-sm text-gray-500">
+                          <span>👥 {company.employees} employees</span>
+                          <span>💰 {company.revenue} revenue</span>
+                          <span>🚀 {company.stage}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
+                          View Details
+                        </button>
+                        <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
+                          Add to List
+                        </button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
-                        View Details
-                      </button>
-                      <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
-                        Add to List
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-6 py-12 text-center">
+                <div className="text-gray-400 text-6xl mb-4">🔍</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Search</h3>
+                <p className="text-gray-600">Enter search terms above to discover companies for acquisition opportunities.</p>
+              </div>
+            )}
           </div>
         </div>
       </main>
