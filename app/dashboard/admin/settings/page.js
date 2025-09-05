@@ -4,25 +4,37 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
 export default function SystemSettingsPage() {
-  const [apiKeys, setApiKeys] = useState({
-    openai: { value: '', status: 'Not Connected' },
-    google_places: { value: '', status: 'Not Connected' },
-    hunter: { value: '', status: 'Not Connected' },
-    apollo: { value: '', status: 'Not Connected' },
-    zoominfo: { value: '', status: 'Not Connected' },
-    resend: { value: '', status: 'Not Connected' },
-  })
+  const [apiKeys, setApiKeys] = useState({})
 
   // Load saved API keys on component mount
   useEffect(() => {
+    const defaultApiKeys = {
+      openai: { value: '', status: 'Not Connected' },
+      google_places: { value: '', status: 'Not Connected' },
+      hunter: { value: '', status: 'Not Connected' },
+      apollo: { value: '', status: 'Not Connected' },
+      zoominfo: { value: '', status: 'Not Connected' },
+      resend: { value: '', status: 'Not Connected' },
+    }
+
     const savedApiKeys = localStorage.getItem('exit-school-api-keys')
     if (savedApiKeys) {
       try {
         const parsed = JSON.parse(savedApiKeys)
-        setApiKeys(parsed)
+        // Merge saved keys with defaults to ensure all API keys exist
+        const mergedApiKeys = { ...defaultApiKeys }
+        Object.keys(parsed).forEach(key => {
+          if (mergedApiKeys[key]) {
+            mergedApiKeys[key] = { ...mergedApiKeys[key], ...parsed[key] }
+          }
+        })
+        setApiKeys(mergedApiKeys)
       } catch (error) {
         console.error('Error loading saved API keys:', error)
+        setApiKeys(defaultApiKeys)
       }
+    } else {
+      setApiKeys(defaultApiKeys)
     }
   }, [])
 
