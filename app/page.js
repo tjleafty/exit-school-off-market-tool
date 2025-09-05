@@ -6,6 +6,10 @@ import Link from 'next/link'
 
 export default function Home() {
   const router = useRouter()
+  
+  useEffect(() => {
+    console.log('Home page loaded - v2.0')
+  }, [])
 
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -15,7 +19,7 @@ export default function Home() {
             Exit School Off-Market Tool
           </h1>
           <p className="text-gray-600 mb-8">
-            B2B Intelligence Platform for company discovery, data enrichment, and automated outreach
+            B2B Intelligence Platform - v2.0
           </p>
         </div>
         
