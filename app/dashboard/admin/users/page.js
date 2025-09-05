@@ -19,6 +19,8 @@ export default function AdminUserManagementPage() {
   ])
 
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -101,11 +103,58 @@ export default function AdminUserManagementPage() {
     console.log('User created:', user)
   }
 
+  const handleEditUser = (user) => {
+    setEditingUser({
+      ...user,
+      features: {
+        companySearch: user.features?.companySearch ?? true,
+        companyEnrichment: user.features?.companyEnrichment ?? true,
+        businessIntelligence: user.features?.businessIntelligence ?? true
+      }
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateUser = () => {
+    const updatedUsers = users.map(user => 
+      user.id === editingUser.id ? editingUser : user
+    )
+    setUsers(updatedUsers)
+    localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+    setShowEditModal(false)
+    setEditingUser(null)
+    console.log('User updated:', editingUser)
+  }
+
+  const handleDeleteUser = (userId) => {
+    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      const updatedUsers = users.filter(user => user.id !== userId)
+      setUsers(updatedUsers)
+      localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+      setShowEditModal(false)
+      setEditingUser(null)
+      console.log('User deleted:', userId)
+    }
+  }
+
+  const handleSuspendUser = () => {
+    const newStatus = editingUser.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+    const updatedUser = { ...editingUser, status: newStatus }
+    setEditingUser(updatedUser)
+    const updatedUsers = users.map(user => 
+      user.id === editingUser.id ? updatedUser : user
+    )
+    setUsers(updatedUsers)
+    localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+    console.log(`User ${newStatus.toLowerCase()}:`, editingUser.id)
+  }
+
   const getStatusBadge = (status) => {
     const colors = {
       ACTIVE: 'bg-green-100 text-green-800',
       PENDING: 'bg-yellow-100 text-yellow-800',
       INVITED: 'bg-blue-100 text-blue-800',
+      SUSPENDED: 'bg-red-100 text-red-800',
       DISABLED: 'bg-red-100 text-red-800'
     }
     return colors[status] || 'bg-gray-100 text-gray-800'
@@ -285,6 +334,151 @@ export default function AdminUserManagementPage() {
             </div>
           )}
 
+          {/* Edit User Modal */}
+          {showEditModal && editingUser && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-screen overflow-y-auto">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit User: {editingUser.name}</h3>
+                
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">User Information</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <input
+                          type="email"
+                          value={editingUser.email}
+                          onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Role</label>
+                        <select
+                          value={editingUser.role}
+                          onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="USER">User</option>
+                          <option value="ADMIN">Administrator</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feature Access */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">Feature Access</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm text-gray-700">Company Search</span>
+                          <p className="text-xs text-gray-500">Discover off-market companies</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editingUser.features?.companySearch ?? true}
+                            onChange={(e) => setEditingUser({
+                              ...editingUser,
+                              features: { ...editingUser.features, companySearch: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm text-gray-700">Company Enrichment</span>
+                          <p className="text-xs text-gray-500">Enhance company data with contacts</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editingUser.features?.companyEnrichment ?? true}
+                            onChange={(e) => setEditingUser({
+                              ...editingUser,
+                              features: { ...editingUser.features, companyEnrichment: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm text-gray-700">Business Intelligence Report</span>
+                          <p className="text-xs text-gray-500">AI-powered company analysis</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editingUser.features?.businessIntelligence ?? true}
+                            onChange={(e) => setEditingUser({
+                              ...editingUser,
+                              features: { ...editingUser.features, businessIntelligence: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3">User Actions</h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleSuspendUser}
+                        className={`w-full px-4 py-2 rounded-md text-sm font-medium ${
+                          editingUser.status === 'ACTIVE' 
+                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                      >
+                        {editingUser.status === 'ACTIVE' ? 'Suspend User' : 'Reactivate User'}
+                      </button>
+                      
+                      {editingUser.method !== 'SYSTEM' && (
+                        <button
+                          onClick={() => handleDeleteUser(editingUser.id)}
+                          className="w-full px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
+                        >
+                          Delete User
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 mt-6">
+                  <button
+                    onClick={handleUpdateUser}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditModal(false)
+                      setEditingUser(null)
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -329,7 +523,10 @@ export default function AdminUserManagementPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                      >
                         Edit
                       </button>
                     </div>
