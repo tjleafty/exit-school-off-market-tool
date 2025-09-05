@@ -33,15 +33,22 @@ export default function AdminUserManagementPage() {
       method: 'SYSTEM'
     }
 
+    console.log('Loading users from localStorage...')
     const savedUsers = localStorage.getItem('exit-school-users')
+    console.log('Saved users from localStorage:', savedUsers)
+    
     if (savedUsers) {
       try {
         const parsed = JSON.parse(savedUsers)
+        console.log('Parsed users:', parsed)
+        
         // Ensure system user is always present
         const hasSystemUser = parsed.some(user => user.method === 'SYSTEM')
         if (!hasSystemUser) {
+          console.log('Adding system user to existing users')
           setUsers([defaultSystemUser, ...parsed])
         } else {
+          console.log('System user found, using saved users')
           setUsers(parsed)
         }
       } catch (error) {
@@ -49,7 +56,7 @@ export default function AdminUserManagementPage() {
         setUsers([defaultSystemUser])
       }
     } else {
-      // No saved users, use default system user
+      console.log('No saved users found, using default system user')
       setUsers([defaultSystemUser])
     }
   }, [])
@@ -57,7 +64,9 @@ export default function AdminUserManagementPage() {
   // Save users to localStorage whenever users change
   useEffect(() => {
     if (users.length > 0) {
+      console.log('Saving users to localStorage:', users)
       localStorage.setItem('exit-school-users', JSON.stringify(users))
+      console.log('Users saved successfully')
     }
   }, [users])
 
@@ -96,7 +105,11 @@ export default function AdminUserManagementPage() {
     }
     
     // Add user to list
-    setUsers(prev => [...prev, user])
+    setUsers(prev => {
+      const updatedUsers = [...prev, user]
+      console.log('Adding user to list. Updated users:', updatedUsers)
+      return updatedUsers
+    })
     
     // Reset form
     setShowCreateForm(false)
@@ -110,7 +123,13 @@ export default function AdminUserManagementPage() {
       sendInvite: false
     })
     
-    console.log('User created:', user)
+    console.log('User created successfully:', user)
+    
+    // Force save to localStorage immediately (backup)
+    setTimeout(() => {
+      const currentUsers = JSON.parse(localStorage.getItem('exit-school-users') || '[]')
+      console.log('Verifying user was saved to localStorage:', currentUsers)
+    }, 1000)
   }
 
   const handleEditUser = (user) => {
