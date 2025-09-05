@@ -106,6 +106,26 @@ serve(async (req) => {
       }
     })
 
+    // Send report ready email notification
+    try {
+      await fetch(`${Deno.env.get('NEXT_PUBLIC_APP_URL')}/api/email/report-ready`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+        },
+        body: JSON.stringify({
+          reportId: report,
+          companyName: company.name,
+          tier: tier,
+          userId: userId
+        })
+      })
+    } catch (emailError) {
+      console.error('Failed to send report ready email:', emailError)
+      // Don't fail the report generation if email fails
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true,

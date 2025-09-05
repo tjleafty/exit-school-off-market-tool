@@ -1,0 +1,11 @@
+# Linked project configuration
+project_id = "ibhjrxejiyvaiflfsufb"
+
+[api]
+enabled = true
+port = 54321
+
+[db] 
+# Use remote database for migrations
+port = 54322
+major_version = 15
