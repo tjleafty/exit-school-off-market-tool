@@ -8,7 +8,7 @@ export default function Home() {
   const router = useRouter()
   
   useEffect(() => {
-    console.log('Home page loaded - v2.0')
+    console.log('Exit School Authentication System - Deploying Now!')
   }, [])
 
   return (
