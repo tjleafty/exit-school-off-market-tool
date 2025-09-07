@@ -4,18 +4,23 @@ import { supabase } from '../../../lib/supabase'
 // GET all users
 export async function GET() {
   try {
+    console.log('GET /api/users - Fetching users from database')
+    
     const { data, error } = await supabase
       .from('app_users')
       .select('*')
       .order('created_at', { ascending: true })
+
+    console.log('Supabase GET response:', { data, error })
 
     if (error) throw error
 
     return NextResponse.json({ users: data })
   } catch (error) {
     console.error('Error fetching users:', error)
+    console.error('Error details:', error.message, error.details, error.hint)
     return NextResponse.json(
-      { error: 'Failed to fetch users' },
+      { error: 'Failed to fetch users', details: error.message },
       { status: 500 }
     )
   }
@@ -24,34 +29,43 @@ export async function GET() {
 // POST create new user
 export async function POST(request) {
   try {
+    console.log('POST /api/users - Starting user creation')
     const body = await request.json()
+    console.log('Request body:', body)
+    
+    const userData = {
+      email: body.email,
+      name: body.name,
+      role: body.role || 'USER',
+      status: body.status || 'ACTIVE',
+      method: body.method || 'MANUAL',
+      has_password: body.hasPassword || false,
+      features: body.features || {
+        companySearch: true,
+        companyEnrichment: true,
+        businessIntelligence: true
+      },
+      created_by: body.createdBy || 'Admin',
+      join_date: new Date().toISOString().split('T')[0]
+    }
+    
+    console.log('User data to insert:', userData)
     
     const { data, error } = await supabase
       .from('app_users')
-      .insert([{
-        email: body.email,
-        name: body.name,
-        role: body.role || 'USER',
-        status: body.status || 'ACTIVE',
-        method: body.method || 'MANUAL',
-        has_password: body.hasPassword || false,
-        features: body.features || {
-          companySearch: true,
-          companyEnrichment: true,
-          businessIntelligence: true
-        },
-        created_by: body.createdBy || 'Admin',
-        join_date: new Date().toISOString().split('T')[0]
-      }])
+      .insert([userData])
       .select()
+
+    console.log('Supabase response:', { data, error })
 
     if (error) throw error
 
     return NextResponse.json({ user: data[0] })
   } catch (error) {
     console.error('Error creating user:', error)
+    console.error('Error details:', error.message, error.details, error.hint)
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { error: 'Failed to create user', details: error.message },
       { status: 500 }
     )
   }
