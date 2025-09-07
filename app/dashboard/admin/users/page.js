@@ -108,6 +108,15 @@ export default function AdminUserManagementPage() {
     setUsers(prev => {
       const updatedUsers = [...prev, user]
       console.log('Adding user to list. Updated users:', updatedUsers)
+      
+      // Immediately save to localStorage (don't wait for useEffect)
+      try {
+        localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+        console.log('Immediately saved to localStorage:', updatedUsers)
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error)
+      }
+      
       return updatedUsers
     })
     
@@ -149,20 +158,34 @@ export default function AdminUserManagementPage() {
       user.id === editingUser.id ? editingUser : user
     )
     setUsers(updatedUsers)
-    localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+    
+    // Immediately save to localStorage
+    try {
+      localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+      console.log('User updated and saved to localStorage:', editingUser)
+    } catch (error) {
+      console.error('Failed to save updated user to localStorage:', error)
+    }
+    
     setShowEditModal(false)
     setEditingUser(null)
-    console.log('User updated:', editingUser)
   }
 
   const handleDeleteUser = (userId) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
       const updatedUsers = users.filter(user => user.id !== userId)
       setUsers(updatedUsers)
-      localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+      
+      // Immediately save to localStorage
+      try {
+        localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+        console.log('User deleted and saved to localStorage:', userId)
+      } catch (error) {
+        console.error('Failed to save after user deletion:', error)
+      }
+      
       setShowEditModal(false)
       setEditingUser(null)
-      console.log('User deleted:', userId)
     }
   }
 
@@ -174,8 +197,14 @@ export default function AdminUserManagementPage() {
       user.id === editingUser.id ? updatedUser : user
     )
     setUsers(updatedUsers)
-    localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
-    console.log(`User ${newStatus.toLowerCase()}:`, editingUser.id)
+    
+    // Immediately save to localStorage
+    try {
+      localStorage.setItem('exit-school-users', JSON.stringify(updatedUsers))
+      console.log(`User ${newStatus.toLowerCase()} and saved to localStorage:`, editingUser.id)
+    } catch (error) {
+      console.error('Failed to save after user suspension:', error)
+    }
   }
 
   const getStatusBadge = (status) => {
