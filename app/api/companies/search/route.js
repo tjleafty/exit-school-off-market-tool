@@ -81,8 +81,10 @@ export async function POST(request) {
     
     if (finalResults.length < limit && (query || filters.city || filters.state)) {
       try {
+        console.log('Attempting Google Places search...')
         placesResponse = await searchGooglePlaces(query, filters, nextPageToken)
-        placesResults = placesResponse.companies
+        placesResults = placesResponse.companies || []
+        console.log(`Google Places returned ${placesResults.length} results`)
         
         // Save Google Places results to database for future searches
         if (placesResults.length > 0) {
@@ -108,10 +110,11 @@ export async function POST(request) {
         
         finalResults = [...finalResults, ...uniquePlacesResults]
       } catch (error) {
-        console.error('Google Places API error:', error)
+        console.error('Google Places API error:', error.message)
         
         // Fallback to mock data if Google Places fails and no database results
-        if (finalResults.length === 0) {
+        if (finalResults.length === 0 && query) {
+          console.log('Falling back to mock data generation')
           finalResults = generateMockCompanies(query, filters)
           
           if (finalResults.length > 0) {
@@ -260,10 +263,16 @@ async function searchGooglePlaces(query, filters, nextPageToken) {
   }
   
   const response = await fetch(`${url}?${params}`)
+  
+  if (!response.ok) {
+    throw new Error(`Google Places API HTTP error: ${response.status} ${response.statusText}`)
+  }
+  
   const data = await response.json()
+  console.log('Google Places API response status:', data.status)
   
   if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-    throw new Error(`Google Places API error: ${data.status}`)
+    throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`)
   }
   
   // Convert Google Places results to our format
