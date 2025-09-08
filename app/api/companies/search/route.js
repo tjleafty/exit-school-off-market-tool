@@ -17,13 +17,91 @@ export async function POST(request) {
 
     console.log('API: Parsed request body:', { query, filters, page, limit, nextPageToken })
 
-    // Start with mock data only to isolate the issue
+    // First, search existing real businesses in database
     let finalResults = []
     
-    if (query) {
-      console.log('API: Generating mock data for query:', query)
-      finalResults = generateMockCompanies(query, filters)
-      console.log('API: Generated', finalResults.length, 'mock companies')
+    console.log('API: Searching database for existing businesses...')
+    try {
+      let searchQuery = supabase
+        .from('companies')
+        .select('*')
+        .eq('source', 'google_places') // Only get real businesses from Google Places
+        .order('created_at', { ascending: false })
+
+      // Apply search filters
+      if (query && query.trim()) {
+        searchQuery = searchQuery.or(`name.ilike.%${query}%,industry.ilike.%${query}%,location.ilike.%${query}%,description.ilike.%${query}%`)
+      }
+      
+      if (filters.city) {
+        searchQuery = searchQuery.ilike('city', `%${filters.city}%`)
+      }
+      
+      if (filters.state) {
+        searchQuery = searchQuery.ilike('state', `%${filters.state}%`)
+      }
+
+      const startIndex = (page - 1) * limit
+      searchQuery = searchQuery.range(startIndex, startIndex + limit - 1)
+
+      const { data: companies, error } = await searchQuery
+
+      if (error) {
+        console.error('API: Database search error:', error)
+      } else {
+        finalResults = companies || []
+        console.log('API: Found', finalResults.length, 'existing businesses in database')
+      }
+    } catch (dbError) {
+      console.error('API: Database error:', dbError.message)
+    }
+
+    // If we don't have enough results, search Google Places API for more real business data
+    let placesResults = []
+    
+    if (finalResults.length < limit && (query || filters.city || filters.state)) {
+      console.log('API: Need more results, searching Google Places API...')
+      try {
+        const placesResponse = await searchGooglePlaces(query, filters, nextPageToken)
+        placesResults = placesResponse.companies || []
+        console.log('API: Google Places returned', placesResults.length, 'new real businesses')
+        
+        // Filter out duplicates (businesses already in database)
+        const existingNames = new Set(finalResults.map(c => c.name.toLowerCase()))
+        const uniqueResults = placesResults.filter(place => 
+          !existingNames.has(place.name.toLowerCase())
+        )
+        
+        console.log('API: After filtering duplicates:', uniqueResults.length, 'unique businesses')
+        
+        // Save new real business data to database
+        if (uniqueResults.length > 0 && userId) {
+          try {
+            const { error: insertError } = await supabase
+              .from('companies')
+              .insert(uniqueResults.map(company => ({
+                ...company,
+                source: 'google_places',
+                added_by: userId
+              })))
+            
+            if (insertError) {
+              console.error('API: Error saving real businesses to database:', insertError)
+            } else {
+              console.log('API: Successfully saved', uniqueResults.length, 'new businesses to database')
+            }
+          } catch (insertError) {
+            console.error('API: Database insert error:', insertError.message)
+          }
+        }
+        
+        // Combine existing and new results
+        finalResults = [...finalResults, ...uniqueResults]
+        
+      } catch (error) {
+        console.error('API: Google Places API error:', error.message)
+        // Continue with existing results if Google Places fails
+      }
     }
     
     // Limit results to requested limit
