@@ -3,6 +3,8 @@ import { supabase } from '../../../../lib/supabase'
 
 export async function POST(request) {
   try {
+    console.log('API: Starting search request processing...')
+    
     const body = await request.json()
     const { 
       query, 
@@ -13,106 +15,30 @@ export async function POST(request) {
       nextPageToken = null
     } = body
 
-    console.log('Company search request:', { query, filters, page, limit, nextPageToken })
+    console.log('API: Parsed request body:', { query, filters, page, limit, nextPageToken })
 
-    // For now, we'll search existing companies in database
-    // Later, this can integrate with external APIs (Google Places, Apollo, etc.)
+    // Start with mock data only to isolate the issue
+    let finalResults = []
     
-    let searchQuery = supabase
-      .from('companies')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    // Apply search query
-    if (query && query.trim()) {
-      searchQuery = searchQuery.or(`name.ilike.%${query}%,industry.ilike.%${query}%,location.ilike.%${query}%,description.ilike.%${query}%`)
-    }
-
-    // Apply filters
-    if (filters.industry) {
-      searchQuery = searchQuery.eq('industry', filters.industry)
-    }
-    if (filters.location) {
-      searchQuery = searchQuery.ilike('location', `%${filters.location}%`)
-    }
-    if (filters.employeesRange) {
-      searchQuery = searchQuery.eq('employees_range', filters.employeesRange)
-    }
-    if (filters.revenueRange) {
-      searchQuery = searchQuery.eq('revenue_range', filters.revenueRange)
-    }
-    if (filters.stage) {
-      searchQuery = searchQuery.eq('company_stage', filters.stage)
-    }
-
-    // Pagination
-    const startIndex = (page - 1) * limit
-    searchQuery = searchQuery.range(startIndex, startIndex + limit - 1)
-
-    const { data: companies, error, count } = await searchQuery
-
-    if (error) {
-      console.error('Search error:', error)
-      throw error
-    }
-
-    // Save search to history if user is provided
-    if (userId) {
-      await supabase
-        .from('search_history')
-        .insert({
-          user_id: userId,
-          search_query: query || '',
-          search_type: 'manual',
-          filters: filters,
-          results_count: companies?.length || 0,
-          results: companies?.slice(0, 10).map(c => ({ 
-            id: c.id, 
-            name: c.name, 
-            industry: c.industry 
-          })) // Store first 10 results summary
-        })
-    }
-
-    // For now, if no results found in database, use mock data
-    let finalResults = companies || []
-    
-    if (finalResults.length === 0 && query) {
-      console.log('No database results, generating mock data')
+    if (query) {
+      console.log('API: Generating mock data for query:', query)
       finalResults = generateMockCompanies(query, filters)
-      
-      // Optionally save mock companies to database for future searches
-      if (finalResults.length > 0) {
-        try {
-          const { error: insertError } = await supabase
-            .from('companies')
-            .insert(finalResults.map(company => ({
-              ...company,
-              source: 'mock_data',
-              added_by: userId
-            })))
-          
-          if (insertError) {
-            console.error('Error saving mock companies:', insertError)
-          }
-        } catch (insertError) {
-          console.error('Database insert error:', insertError.message)
-          // Continue without saving to database
-        }
-      }
+      console.log('API: Generated', finalResults.length, 'mock companies')
     }
     
     // Limit results to requested limit
     finalResults = finalResults.slice(0, limit)
 
-    // Determine if there are more results available
+    // Simple pagination logic
     let hasMoreResults = finalResults.length === limit
     let responseNextPageToken = hasMoreResults ? `page_${page + 1}` : null
+    
+    console.log('API: Returning response with', finalResults.length, 'companies')
     
     return NextResponse.json({
       success: true,
       companies: finalResults,
-      total: count || finalResults.length,
+      total: finalResults.length,
       page,
       limit,
       hasMoreResults,
@@ -120,7 +46,7 @@ export async function POST(request) {
     })
 
   } catch (error) {
-    console.error('Company search error:', error)
+    console.error('API: Company search error:', error)
     return NextResponse.json(
       { error: 'Failed to search companies', details: error.message },
       { status: 500 }
