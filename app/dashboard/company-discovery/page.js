@@ -11,6 +11,10 @@ export default function CompanyDiscoveryPage() {
   const [savedLists, setSavedLists] = useState([])
   const [selectedCompanies, setSelectedCompanies] = useState([])
   const [user, setUser] = useState(null)
+  const [hasMoreResults, setHasMoreResults] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [nextPageToken, setNextPageToken] = useState(null)
   
   const [filters, setFilters] = useState({
     industry: '',
@@ -28,13 +32,19 @@ export default function CompanyDiscoveryPage() {
     }
   }, [])
 
-  const handleSearch = async () => {
+  const handleSearch = async (isNewSearch = true) => {
     if (!searchTerm.trim() && !Object.values(filters).some(f => f)) {
       alert('Please enter search terms or apply filters')
       return
     }
     
-    setIsSearching(true)
+    if (isNewSearch) {
+      setIsSearching(true)
+      setResults([])
+      setCurrentPage(1)
+      setNextPageToken(null)
+    }
+    
     try {
       const response = await fetch('/api/companies/search', {
         method: 'POST',
@@ -43,16 +53,32 @@ export default function CompanyDiscoveryPage() {
           query: searchTerm,
           filters: filters,
           userId: user?.id,
-          page: 1,
-          limit: 50
+          page: isNewSearch ? 1 : currentPage,
+          limit: 20,
+          nextPageToken: isNewSearch ? null : nextPageToken
         })
       })
 
       const data = await response.json()
       
       if (data.success) {
-        setResults(data.companies || [])
-        if (data.companies?.length === 0) {
+        const newCompanies = data.companies || []
+        
+        if (isNewSearch) {
+          setResults(newCompanies)
+        } else {
+          // Append new results, filtering out duplicates
+          setResults(prev => {
+            const existingIds = new Set(prev.map(c => c.id))
+            const uniqueNewCompanies = newCompanies.filter(c => !existingIds.has(c.id))
+            return [...prev, ...uniqueNewCompanies]
+          })
+        }
+        
+        setHasMoreResults(data.hasMoreResults || false)
+        setNextPageToken(data.nextPageToken || null)
+        
+        if (newCompanies.length === 0 && isNewSearch) {
           alert('No companies found. Try different search terms.')
         }
       } else {
@@ -63,13 +89,28 @@ export default function CompanyDiscoveryPage() {
       console.error('Search error:', error)
       alert('Search failed. Please try again.')
     } finally {
-      setIsSearching(false)
+      if (isNewSearch) {
+        setIsSearching(false)
+      }
     }
   }
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleSearch()
+    }
+  }
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMoreResults) return
+    
+    setIsLoadingMore(true)
+    setCurrentPage(prev => prev + 1)
+    
+    try {
+      await handleSearch(false)
+    } finally {
+      setIsLoadingMore(false)
     }
   }
 
@@ -140,20 +181,50 @@ export default function CompanyDiscoveryPage() {
           {/* Search Bar */}
           <div className="bg-white shadow rounded-lg p-6 mb-6">
             <div className="space-y-4">
+              {/* Primary Search Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Technology, Healthcare, Manufacturing"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., San Francisco, New York"
+                    value={filters.city || ''}
+                    onChange={(e) => setFilters({...filters, city: e.target.value})}
+                    onKeyPress={handleKeyPress}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., CA, NY, TX"
+                    value={filters.state || ''}
+                    onChange={(e) => setFilters({...filters, state: e.target.value})}
+                    onKeyPress={handleKeyPress}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Search Controls */}
               <div className="flex gap-4">
-                <input
-                  type="text"
-                  placeholder="Search by company name, industry, or keywords..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                 >
-                  Filters {showFilters ? '▲' : '▼'}
+                  Advanced Filters {showFilters ? '▲' : '▼'}
                 </button>
                 <button 
                   onClick={handleSearch}
@@ -161,6 +232,23 @@ export default function CompanyDiscoveryPage() {
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
                   {isSearching ? 'Searching...' : 'Search'}
+                </button>
+                <button
+                  onClick={() => {
+                    setSearchTerm('')
+                    setFilters({
+                      industry: '',
+                      location: '',
+                      city: '',
+                      state: '',
+                      employeesRange: '',
+                      revenueRange: '',
+                      stage: ''
+                    })
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                >
+                  Clear All
                 </button>
               </div>
 
@@ -381,6 +469,22 @@ export default function CompanyDiscoveryPage() {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+            
+            {/* Load More Button */}
+            {results.length > 0 && hasMoreResults && (
+              <div className="px-6 py-6 border-t border-gray-200 text-center bg-gray-50">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingMore ? 'Loading More...' : 'Load More Results'}
+                </button>
+                <p className="text-sm text-gray-500 mt-2">
+                  Showing {results.length} companies. Click to load more from Google Places API.
+                </p>
               </div>
             )}
           </div>
