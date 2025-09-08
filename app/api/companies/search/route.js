@@ -74,62 +74,30 @@ export async function POST(request) {
         })
     }
 
-    // If no results found in database, search Google Places API
+    // For now, if no results found in database, use mock data
     let finalResults = companies || []
-    let placesResults = []
-    let placesResponse = null
     
-    if (finalResults.length < limit && (query || filters.city || filters.state)) {
-      try {
-        console.log('Attempting Google Places search...')
-        placesResponse = await searchGooglePlaces(query, filters, nextPageToken)
-        placesResults = placesResponse.companies || []
-        console.log(`Google Places returned ${placesResults.length} results`)
-        
-        // Save Google Places results to database for future searches
-        if (placesResults.length > 0) {
+    if (finalResults.length === 0 && query) {
+      console.log('No database results, generating mock data')
+      finalResults = generateMockCompanies(query, filters)
+      
+      // Optionally save mock companies to database for future searches
+      if (finalResults.length > 0) {
+        try {
           const { error: insertError } = await supabase
             .from('companies')
-            .insert(placesResults.map(company => ({
+            .insert(finalResults.map(company => ({
               ...company,
-              source: 'google_places',
+              source: 'mock_data',
               added_by: userId
             })))
           
           if (insertError) {
-            console.error('Error saving Google Places companies:', insertError)
+            console.error('Error saving mock companies:', insertError)
           }
-        }
-        
-        // Combine database and Google Places results, filtering duplicates
-        const existingKeys = new Set(finalResults.map(c => `${c.name.toLowerCase()}-${c.location?.toLowerCase()}`))
-        const uniquePlacesResults = placesResults.filter(place => {
-          const key = `${place.name.toLowerCase()}-${place.location?.toLowerCase()}`
-          return !existingKeys.has(key)
-        })
-        
-        finalResults = [...finalResults, ...uniquePlacesResults]
-      } catch (error) {
-        console.error('Google Places API error:', error.message)
-        
-        // Fallback to mock data if Google Places fails and no database results
-        if (finalResults.length === 0 && query) {
-          console.log('Falling back to mock data generation')
-          finalResults = generateMockCompanies(query, filters)
-          
-          if (finalResults.length > 0) {
-            const { error: insertError } = await supabase
-              .from('companies')
-              .insert(finalResults.map(company => ({
-                ...company,
-                source: 'mock_data',
-                added_by: userId
-              })))
-            
-            if (insertError) {
-              console.error('Error saving mock companies:', insertError)
-            }
-          }
+        } catch (insertError) {
+          console.error('Database insert error:', insertError.message)
+          // Continue without saving to database
         }
       }
     }
@@ -138,18 +106,8 @@ export async function POST(request) {
     finalResults = finalResults.slice(0, limit)
 
     // Determine if there are more results available
-    let hasMoreResults = false
-    let responseNextPageToken = null
-    
-    if (placesResults.length > 0 && placesResponse.nextPageToken) {
-      // Google Places has more results
-      hasMoreResults = true
-      responseNextPageToken = placesResponse.nextPageToken
-    } else if (finalResults.length === limit) {
-      // We hit our limit, there might be more database results
-      hasMoreResults = true
-      responseNextPageToken = `page_${page + 1}`
-    }
+    let hasMoreResults = finalResults.length === limit
+    let responseNextPageToken = hasMoreResults ? `page_${page + 1}` : null
     
     return NextResponse.json({
       success: true,
