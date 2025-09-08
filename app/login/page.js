@@ -17,14 +17,26 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // Simple auth simulation for now - will implement Supabase later
-      if (email === 'admin@exitschool.com' && password === 'password') {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.user) {
+        // Store user info for role-based routing
+        localStorage.setItem('user', JSON.stringify(data.user))
         router.push('/dashboard')
       } else {
-        setError('Invalid credentials')
+        setError(data.error || 'Invalid credentials')
       }
     } catch (err) {
-      setError('Login failed')
+      console.error('Login error:', err)
+      setError('Login failed. Please try again.')
     } finally {
       setIsLoading(false)
     }

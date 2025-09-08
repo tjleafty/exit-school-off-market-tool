@@ -7,14 +7,23 @@ export default function DashboardRedirect() {
   const router = useRouter()
 
   useEffect(() => {
-    // In a real app, you'd check the user's role from auth context/API
-    // For demo, we'll assume admin since that's our test account
-    const userRole = 'ADMIN' // This would come from auth context
-    
-    if (userRole === 'ADMIN') {
-      router.push('/dashboard/admin')
+    // Get user role from localStorage (set during login)
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr)
+        if (user.role === 'ADMIN') {
+          router.push('/dashboard/admin')
+        } else {
+          router.push('/dashboard/user')
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+        router.push('/login')
+      }
     } else {
-      router.push('/dashboard/user')
+      // No user logged in, redirect to login
+      router.push('/login')
     }
   }, [router])
 
