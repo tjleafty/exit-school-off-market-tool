@@ -173,6 +173,7 @@ function generateMockCompanies(query, filters) {
 async function searchGooglePlaces(query, filters, nextPageToken) {
   // Try to get API key from database first, then fall back to environment
   let apiKey = process.env.GOOGLE_PLACES_API_KEY
+  console.log('PLACES: Environment API key exists:', !!apiKey)
   
   try {
     const { data: apiKeyData } = await supabase
@@ -183,16 +184,20 @@ async function searchGooglePlaces(query, filters, nextPageToken) {
       .single()
     
     if (apiKeyData?.encrypted_key) {
-      // In production, you'd decrypt this. For now, assume it's stored as plaintext
       apiKey = apiKeyData.encrypted_key
+      console.log('PLACES: Using API key from database')
+    } else {
+      console.log('PLACES: No API key found in database')
     }
   } catch (error) {
-    console.log('No Google Places API key found in database, using environment variable')
+    console.log('PLACES: Database API key lookup failed:', error.message)
   }
   
   if (!apiKey || apiKey === 'YOUR_GOOGLE_PLACES_API_KEY_HERE') {
     throw new Error('Google Places API key not configured. Please add it in System Settings.')
   }
+  
+  console.log('PLACES: API key configured, proceeding with search')
   
   // Build search query for Google Places
   let searchQuery = ''
@@ -213,6 +218,8 @@ async function searchGooglePlaces(query, filters, nextPageToken) {
     searchQuery = 'business'
   }
   
+  console.log('PLACES: Final search query:', searchQuery)
+  
   const url = 'https://maps.googleapis.com/maps/api/place/textsearch/json'
   const params = new URLSearchParams({
     query: searchQuery,
@@ -224,17 +231,25 @@ async function searchGooglePlaces(query, filters, nextPageToken) {
     params.append('pagetoken', nextPageToken)
   }
   
+  console.log('PLACES: Making API call to Google Places...')
   const response = await fetch(`${url}?${params}`)
+  
+  console.log('PLACES: Response status:', response.status, response.statusText)
   
   if (!response.ok) {
     throw new Error(`Google Places API HTTP error: ${response.status} ${response.statusText}`)
   }
   
   const data = await response.json()
-  console.log('Google Places API response status:', data.status)
+  console.log('PLACES: Google Places API response status:', data.status)
+  console.log('PLACES: Results count:', data.results?.length || 0)
   
   if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
     throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`)
+  }
+  
+  if (data.results?.length > 0) {
+    console.log('PLACES: Sample result:', data.results[0].name)
   }
   
   // Convert Google Places results to our format
