@@ -97,43 +97,38 @@ export async function POST(request) {
           throw error
         }
       }
-        
-        // Filter out duplicates (businesses already in database)
-        const existingNames = new Set(finalResults.map(c => c.name.toLowerCase()))
-        const uniqueResults = placesResults.filter(place => 
-          !existingNames.has(place.name.toLowerCase())
-        )
-        
-        console.log('API: After filtering duplicates:', uniqueResults.length, 'unique businesses')
-        
-        // Save new real business data to database
-        if (uniqueResults.length > 0 && userId) {
-          try {
-            const { error: insertError } = await supabase
-              .from('companies')
-              .insert(uniqueResults.map(company => ({
-                ...company,
-                source: 'google_places',
-                added_by: userId
-              })))
-            
-            if (insertError) {
-              console.error('API: Error saving real businesses to database:', insertError)
-            } else {
-              console.log('API: Successfully saved', uniqueResults.length, 'new businesses to database')
-            }
-          } catch (insertError) {
-            console.error('API: Database insert error:', insertError.message)
+      
+      // Filter out duplicates (businesses already in database)
+      const existingNames = new Set(finalResults.map(c => c.name.toLowerCase()))
+      const uniqueResults = placesResults.filter(place => 
+        !existingNames.has(place.name.toLowerCase())
+      )
+      
+      console.log('API: After filtering duplicates:', uniqueResults.length, 'unique businesses')
+      
+      // Save new real business data to database
+      if (uniqueResults.length > 0 && userId) {
+        try {
+          const { error: insertError } = await supabase
+            .from('companies')
+            .insert(uniqueResults.map(company => ({
+              ...company,
+              source: 'google_places',
+              added_by: userId
+            })))
+          
+          if (insertError) {
+            console.error('API: Error saving real businesses to database:', insertError)
+          } else {
+            console.log('API: Successfully saved', uniqueResults.length, 'new businesses to database')
           }
+        } catch (insertError) {
+          console.error('API: Database insert error:', insertError.message)
         }
-        
-        // Combine existing and new results
-        finalResults = [...finalResults, ...uniqueResults]
-        
-      } catch (error) {
-        console.error('API: Google Places API error:', error.message)
-        // Continue with existing results if Google Places fails
       }
+      
+      // Combine existing and new results
+      finalResults = [...finalResults, ...uniqueResults]
     }
     
     // Limit results to requested limit
