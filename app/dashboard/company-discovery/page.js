@@ -26,9 +26,11 @@ export default function CompanyDiscoveryPage() {
 
   // Load user info
   useEffect(() => {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      setUser(JSON.parse(userStr))
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user')
+      if (userStr) {
+        setUser(JSON.parse(userStr))
+      }
     }
   }, [])
 
@@ -133,6 +135,7 @@ export default function CompanyDiscoveryPage() {
   }
 
   const getUserRole = () => {
+    if (typeof window === 'undefined') return 'USER' // Server-side fallback
     const userStr = localStorage.getItem('user')
     if (userStr) {
       const user = JSON.parse(userStr)
