@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase'
 
+// Simple in-memory cache to prevent duplicate requests
+const activeRequests = new Map()
+
 export async function POST(request) {
   try {
     console.log('API: Starting search request processing...')
@@ -61,10 +64,39 @@ export async function POST(request) {
     
     if (finalResults.length < limit && (query || filters.city || filters.state)) {
       console.log('API: Need more results, searching Google Places API...')
-      try {
-        const placesResponse = await searchGooglePlaces(query, filters, nextPageToken)
-        placesResults = placesResponse.companies || []
-        console.log('API: Google Places returned', placesResults.length, 'new real businesses')
+      
+      // Create a unique key for this search to prevent duplicates
+      const searchKey = JSON.stringify({ query, city: filters.city, state: filters.state, nextPageToken })
+      
+      // Check if this exact search is already in progress
+      if (activeRequests.has(searchKey)) {
+        console.log('API: Duplicate request detected, waiting for existing request...')
+        try {
+          const existingResult = await activeRequests.get(searchKey)
+          placesResults = existingResult.companies || []
+          console.log('API: Used cached result with', placesResults.length, 'businesses')
+        } catch (error) {
+          console.log('API: Cached request failed, proceeding with new request')
+        }
+      }
+      
+      if (placesResults.length === 0) {
+        try {
+          // Create promise for this search
+          const searchPromise = searchGooglePlaces(query, filters, nextPageToken)
+          activeRequests.set(searchKey, searchPromise)
+          
+          const placesResponse = await searchPromise
+          placesResults = placesResponse.companies || []
+          console.log('API: Google Places returned', placesResults.length, 'new real businesses')
+          
+          // Clean up the active request
+          activeRequests.delete(searchKey)
+        } catch (error) {
+          activeRequests.delete(searchKey)
+          throw error
+        }
+      }
         
         // Filter out duplicates (businesses already in database)
         const existingNames = new Set(finalResults.map(c => c.name.toLowerCase()))
@@ -232,20 +264,49 @@ async function searchGooglePlaces(query, filters, nextPageToken) {
   }
   
   console.log('PLACES: Making API call to Google Places...')
-  const response = await fetch(`${url}?${params}`)
   
-  console.log('PLACES: Response status:', response.status, response.statusText)
+  // Add retry logic for reliability
+  let response, data;
+  let retries = 3;
   
-  if (!response.ok) {
-    throw new Error(`Google Places API HTTP error: ${response.status} ${response.statusText}`)
-  }
-  
-  const data = await response.json()
-  console.log('PLACES: Google Places API response status:', data.status)
-  console.log('PLACES: Results count:', data.results?.length || 0)
-  
-  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-    throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`)
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`PLACES: Attempt ${attempt}/${retries}`)
+      response = await fetch(`${url}?${params}`, {
+        timeout: 10000 // 10 second timeout
+      })
+      
+      console.log('PLACES: Response status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        if (response.status === 429) { // Rate limited
+          console.log('PLACES: Rate limited, waiting before retry...')
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)) // Progressive backoff
+          continue
+        }
+        throw new Error(`Google Places API HTTP error: ${response.status} ${response.statusText}`)
+      }
+      
+      data = await response.json()
+      console.log('PLACES: Google Places API response status:', data.status)
+      console.log('PLACES: Results count:', data.results?.length || 0)
+      
+      if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
+        break // Success
+      } else if (data.status === 'OVER_QUERY_LIMIT') {
+        console.log('PLACES: Over query limit, waiting before retry...')
+        await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+        continue
+      } else {
+        throw new Error(`Google Places API error: ${data.status} - ${data.error_message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.log(`PLACES: Attempt ${attempt} failed:`, error.message)
+      if (attempt === retries) {
+        throw error // Re-throw on final attempt
+      }
+      await new Promise(resolve => setTimeout(resolve, 500 * attempt)) // Wait before retry
+    }
   }
   
   if (data.results?.length > 0) {
