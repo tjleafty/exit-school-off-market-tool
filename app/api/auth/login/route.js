@@ -68,12 +68,44 @@ export async function POST(request) {
 
     // For manual users, check if they have a password set
     if (user.method === 'MANUAL' && user.has_password) {
-      // TODO: Check hashed password
-      // For now, temporary solution
-      console.log('Manual user login attempt - password verification needed')
+      if (!user.password_hash) {
+        return NextResponse.json(
+          { error: 'Password not set. Please contact administrator for password reset.' },
+          { status: 401 }
+        )
+      }
+
+      const hashedPassword = hashPassword(password)
+      if (hashedPassword !== user.password_hash) {
+        console.log('Manual user password mismatch for:', email)
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
+
+      // Password correct, update last login
+      await supabase
+        .from('app_users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id)
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
+      })
+    }
+
+    // For manual users without password set
+    if (user.method === 'MANUAL' && !user.has_password) {
       return NextResponse.json(
-        { error: 'Password verification not yet implemented for manual users' },
-        { status: 501 }
+        { error: 'Password not set. Please contact administrator for password reset.' },
+        { status: 401 }
       )
     }
 

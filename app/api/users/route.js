@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
+import { createHash } from 'crypto'
+
+function hashPassword(password) {
+  return createHash('sha256').update(password).digest('hex')
+}
 
 // GET all users
 export async function GET() {
@@ -47,6 +52,12 @@ export async function POST(request) {
       },
       created_by: body.createdBy || 'Admin',
       join_date: new Date().toISOString().split('T')[0]
+    }
+
+    // If this is a manual user with a password, hash and store it
+    if (body.method === 'MANUAL' && body.password && body.hasPassword) {
+      userData.password_hash = hashPassword(body.password)
+      console.log('Setting password for manual user')
     }
     
     console.log('User data to insert:', userData)

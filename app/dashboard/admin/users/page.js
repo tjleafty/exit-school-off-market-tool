@@ -64,6 +64,7 @@ export default function AdminUserManagementPage() {
           status: newUser.creationType === 'manual' ? 'ACTIVE' : 'INVITED',
           method: newUser.creationType === 'manual' ? 'MANUAL' : 'INVITE',
           hasPassword: newUser.creationType === 'manual',
+          password: newUser.creationType === 'manual' ? newUser.password : undefined,
           createdBy: 'Admin'
         })
       })
