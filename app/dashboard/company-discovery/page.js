@@ -11,6 +11,7 @@ export default function CompanyDiscoveryPage() {
   const [savedLists, setSavedLists] = useState([])
   const [selectedCompanies, setSelectedCompanies] = useState([])
   const [user, setUser] = useState(null)
+  const [userRole, setUserRole] = useState('USER')
   const [hasMoreResults, setHasMoreResults] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -29,7 +30,9 @@ export default function CompanyDiscoveryPage() {
     if (typeof window !== 'undefined') {
       const userStr = localStorage.getItem('user')
       if (userStr) {
-        setUser(JSON.parse(userStr))
+        const userData = JSON.parse(userStr)
+        setUser(userData)
+        setUserRole(userData.role || 'USER')
       }
     }
   }, [])
@@ -134,15 +137,6 @@ export default function CompanyDiscoveryPage() {
     )
   }
 
-  const getUserRole = () => {
-    if (typeof window === 'undefined') return 'USER' // Server-side fallback
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      const user = JSON.parse(userStr)
-      return user.role
-    }
-    return 'USER'
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -151,7 +145,7 @@ export default function CompanyDiscoveryPage() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link 
-                href={getUserRole() === 'ADMIN' ? '/dashboard/admin' : '/dashboard/user'} 
+                href={userRole === 'ADMIN' ? '/dashboard/admin' : '/dashboard/user'} 
                 className="text-blue-600 hover:text-blue-500 mr-4"
               >
                 ← Back to Dashboard
@@ -160,11 +154,11 @@ export default function CompanyDiscoveryPage() {
             </div>
             <div className="flex items-center space-x-4">
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                getUserRole() === 'ADMIN' 
+                userRole === 'ADMIN' 
                   ? 'bg-purple-100 text-purple-800' 
                   : 'bg-blue-100 text-blue-800'
               }`}>
-                {getUserRole() === 'ADMIN' ? 'Administrator' : 'User'}
+                {userRole === 'ADMIN' ? 'Administrator' : 'User'}
               </span>
               <Link href="/" className="text-gray-500 hover:text-gray-700">
                 Sign out
