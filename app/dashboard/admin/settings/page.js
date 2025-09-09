@@ -4,59 +4,56 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 
 export default function SystemSettingsPage() {
-  const [apiKeys, setApiKeys] = useState({})
+  const [apiKeys, setApiKeys] = useState({
+    openai: { value: '', status: 'Not Connected' },
+    google_places: { value: '', status: 'Not Connected' },
+    hunter: { value: '', status: 'Not Connected' },
+    apollo: { value: '', status: 'Not Connected' },
+    zoominfo: { value: '', status: 'Not Connected' },
+    resend: { value: '', status: 'Not Connected' },
+  })
 
   // Load saved API keys from database on component mount
   useEffect(() => {
-    const defaultApiKeys = {
-      openai: { value: '', status: 'Not Connected' },
-      google_places: { value: '', status: 'Not Connected' },
-      hunter: { value: '', status: 'Not Connected' },
-      apollo: { value: '', status: 'Not Connected' },
-      zoominfo: { value: '', status: 'Not Connected' },
-      resend: { value: '', status: 'Not Connected' },
-    }
-
-    // Always show default keys first
-    setApiKeys(defaultApiKeys)
-
+    console.log('SystemSettingsPage: Component mounted, API keys state:', apiKeys)
+    
     const loadApiKeys = async () => {
       try {
-        console.log('Attempting to load API keys from database...')
+        console.log('🔄 Attempting to load API keys from database...')
         const response = await fetch('/api/settings/api-keys')
-        console.log('API response status:', response.status)
+        console.log('📡 API response status:', response.status)
         
         if (response.ok) {
           const data = await response.json()
-          console.log('API response data:', data)
-          const dbApiKeys = { ...defaultApiKeys }
+          console.log('📊 API response data:', data)
           
-          // Always ensure google_places is visible
           if (Array.isArray(data)) {
+            const updatedKeys = { ...apiKeys }
             data.forEach(keyData => {
-              if (dbApiKeys[keyData.service]) {
-                dbApiKeys[keyData.service] = {
+              if (updatedKeys[keyData.service]) {
+                updatedKeys[keyData.service] = {
                   value: keyData.encrypted_key || '',
-                  status: keyData.status || 'Not Connected'
+                  status: keyData.status || 'Connected'
                 }
               }
             })
+            setApiKeys(updatedKeys)
+            console.log('✅ Successfully loaded API keys from database:', updatedKeys)
+          } else {
+            console.log('⚠️ No array data returned, keeping defaults')
           }
-          
-          setApiKeys(dbApiKeys)
-          console.log('Successfully loaded API keys from database:', dbApiKeys)
         } else {
-          console.error('Failed to fetch API keys, keeping defaults. Status:', response.status)
+          console.error('❌ Failed to fetch API keys. Status:', response.status)
           const errorText = await response.text()
           console.error('Error response:', errorText)
         }
       } catch (error) {
-        console.error('Error loading API keys from database:', error)
-        // Keep defaults that were already set
+        console.error('💥 Error loading API keys from database:', error)
       }
     }
     
-    loadApiKeys()
+    // Small delay to ensure component is fully mounted
+    setTimeout(loadApiKeys, 100)
   }, [])
 
   const [activeTab, setActiveTab] = useState('apis')
