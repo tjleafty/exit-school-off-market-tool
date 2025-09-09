@@ -7,28 +7,48 @@ export async function GET() {
     tests: []
   }
 
-  // Test 1: Database API Key Retrieval
+  // Test 1: API Key Retrieval (Environment Variable or Database)
   try {
-    console.log('Test 1: Fetching API key from database...')
-    const { data: apiKeyData, error } = await supabase
-      .from('api_keys')
-      .select('encrypted_key, status')
-      .eq('service', 'google_places')
-      .single()
+    console.log('Test 1: Fetching API key...')
     
-    results.tests.push({
-      test: 'Database API Key Retrieval',
-      success: !!apiKeyData,
-      status: apiKeyData?.status || 'Not found',
-      hasKey: !!apiKeyData?.encrypted_key,
-      error: error?.message
-    })
-
-    if (!apiKeyData?.encrypted_key) {
-      return NextResponse.json(results)
+    // Check environment variable first
+    let apiKey = process.env.GOOGLE_PLACES_API_KEY
+    
+    if (apiKey) {
+      console.log('Using API key from environment variable')
+      results.tests.push({
+        test: 'API Key Retrieval',
+        success: true,
+        source: 'Environment Variable (Persistent)',
+        hasKey: true
+      })
+    } else {
+      console.log('No environment variable, checking database...')
+      const { data: apiKeyData, error } = await supabase
+        .from('api_keys')
+        .select('encrypted_key, status')
+        .eq('service', 'google_places')
+        .single()
+      
+      if (apiKeyData?.encrypted_key) {
+        apiKey = apiKeyData.encrypted_key
+        results.tests.push({
+          test: 'API Key Retrieval',
+          success: true,
+          source: 'Database',
+          status: apiKeyData.status,
+          hasKey: true
+        })
+      } else {
+        results.tests.push({
+          test: 'API Key Retrieval',
+          success: false,
+          error: 'No API key found in environment or database',
+          recommendation: 'Add GOOGLE_PLACES_API_KEY to Vercel environment variables'
+        })
+        return NextResponse.json(results)
+      }
     }
-
-    const apiKey = apiKeyData.encrypted_key
 
     // Test 2: Simple Google Places API Call
     console.log('Test 2: Making Google Places API call...')

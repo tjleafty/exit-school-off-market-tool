@@ -13,24 +13,29 @@ export async function POST(request) {
       )
     }
 
-    // Fetch API key from database or environment variable
+    // Fetch API key - prioritize environment variable for persistence
     let apiKey = process.env.GOOGLE_PLACES_API_KEY
     
-    // Try to get from database first (more secure and updatable)
-    try {
-      const { data: apiKeyData } = await supabase
-        .from('api_keys')
-        .select('encrypted_key')
-        .eq('service', 'google_places')
-        .eq('status', 'Connected')
-        .single()
-      
-      if (apiKeyData?.encrypted_key) {
-        apiKey = apiKeyData.encrypted_key
-        console.log('Using Google Places API key from database')
+    // Only check database if no environment variable
+    if (!apiKey) {
+      console.log('No environment variable found, checking database...')
+      try {
+        const { data: apiKeyData } = await supabase
+          .from('api_keys')
+          .select('encrypted_key')
+          .eq('service', 'google_places')
+          .eq('status', 'Connected')
+          .single()
+        
+        if (apiKeyData?.encrypted_key) {
+          apiKey = apiKeyData.encrypted_key
+          console.log('Using Google Places API key from database')
+        }
+      } catch (error) {
+        console.log('Database API key lookup failed:', error.message)
       }
-    } catch (error) {
-      console.log('Database API key lookup failed, using environment variable')
+    } else {
+      console.log('Using Google Places API key from environment variable')
     }
 
     if (!apiKey || apiKey === 'YOUR_GOOGLE_PLACES_API_KEY_HERE') {
