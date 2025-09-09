@@ -38,8 +38,17 @@ export default function CompanyDiscoveryPage() {
   }, [])
 
   const handleSearch = async (isNewSearch = true) => {
-    if (!searchTerm.trim() && !Object.values(filters).some(f => f)) {
-      alert('Please enter search terms or apply filters')
+    // Build search query from filters
+    const searchQuery = []
+    if (searchTerm) searchQuery.push(searchTerm)
+    if (filters.industry) searchQuery.push(filters.industry)
+    
+    const location = []
+    if (filters.city) location.push(filters.city)
+    if (filters.state) location.push(filters.state)
+    
+    if (searchQuery.length === 0 && location.length === 0) {
+      alert('Please enter search terms or location')
       return
     }
     
@@ -51,23 +60,42 @@ export default function CompanyDiscoveryPage() {
     }
     
     try {
-      const response = await fetch('/api/companies/search', {
+      // Call the secure Google Places API endpoint
+      const response = await fetch('/api/places/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          query: searchTerm,
-          filters: filters,
-          userId: user?.id,
-          page: isNewSearch ? 1 : currentPage,
-          limit: 20,
-          nextPageToken: isNewSearch ? null : nextPageToken
+          query: searchQuery.join(' '),
+          location: location.join(', '),
+          type: 'establishment'
         })
       })
 
       const data = await response.json()
       
-      if (data.success) {
-        const newCompanies = data.companies || []
+      if (!response.ok) {
+        console.error('Search failed:', data.error)
+        alert(data.error || 'Search failed. Please try again.')
+        return
+      }
+      
+      if (data.status === 'OK' && data.results) {
+        const newCompanies = data.results.map(place => ({
+          id: place.place_id,
+          name: place.name,
+          location: place.formatted_address,
+          address: place.formatted_address,
+          city: place.formatted_address?.split(',')[1]?.trim() || '',
+          state: place.formatted_address?.split(',')[2]?.trim()?.split(' ')[0] || '',
+          rating: place.rating,
+          user_ratings_total: place.user_ratings_total,
+          types: place.types,
+          industry: place.types?.[0]?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Business',
+          website: place.website,
+          phone: place.formatted_phone_number,
+          is_enriched: !!place.website,
+          geometry: place.geometry
+        }))
         
         if (isNewSearch) {
           setResults(newCompanies)
@@ -80,14 +108,20 @@ export default function CompanyDiscoveryPage() {
           })
         }
         
-        setHasMoreResults(data.hasMoreResults || false)
-        setNextPageToken(data.nextPageToken || null)
+        // Google Places returns max 20 results per page, check for next_page_token
+        setHasMoreResults(!!data.next_page_token)
+        setNextPageToken(data.next_page_token || null)
         
         if (newCompanies.length === 0 && isNewSearch) {
-          alert('No companies found. Try different search terms.')
+          alert('No businesses found. Try different search terms.')
+        }
+      } else if (data.status === 'ZERO_RESULTS') {
+        if (isNewSearch) {
+          setResults([])
+          alert('No businesses found. Try different search terms.')
         }
       } else {
-        console.error('Search failed:', data.error)
+        console.error('Search error:', data.status, data.error_message)
         alert('Search failed. Please try again.')
       }
     } catch (error) {

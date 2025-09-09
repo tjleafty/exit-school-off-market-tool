@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
+import { supabase } from '../../../../lib/supabase'
 
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { query, location, type, apiKey } = body
+    const { query, location, type } = body // Remove apiKey from client request
 
     if (!query) {
       return NextResponse.json(
@@ -12,10 +13,30 @@ export async function POST(request) {
       )
     }
 
-    if (!apiKey) {
+    // Fetch API key from database or environment variable
+    let apiKey = process.env.GOOGLE_PLACES_API_KEY
+    
+    // Try to get from database first (more secure and updatable)
+    try {
+      const { data: apiKeyData } = await supabase
+        .from('api_keys')
+        .select('encrypted_key')
+        .eq('service', 'google_places')
+        .eq('status', 'Connected')
+        .single()
+      
+      if (apiKeyData?.encrypted_key) {
+        apiKey = apiKeyData.encrypted_key
+        console.log('Using Google Places API key from database')
+      }
+    } catch (error) {
+      console.log('Database API key lookup failed, using environment variable')
+    }
+
+    if (!apiKey || apiKey === 'YOUR_GOOGLE_PLACES_API_KEY_HERE') {
       return NextResponse.json(
-        { error: 'Google Places API key not configured. Please add it in Settings.' },
-        { status: 400 }
+        { error: 'Google Places API key not configured. Please contact administrator.' },
+        { status: 500 }
       )
     }
 
