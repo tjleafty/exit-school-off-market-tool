@@ -1,0 +1,133 @@
+import { NextResponse } from 'next/server'
+import { supabase } from '../../../../lib/supabase'
+
+// GET - Retrieve all API keys
+export async function GET() {
+  try {
+    const { data, error } = await supabase
+      .from('api_keys')
+      .select('service, encrypted_key, status, created_at')
+      .order('service')
+    
+    if (error) throw error
+    
+    return NextResponse.json(data || [])
+  } catch (error) {
+    console.error('Error fetching API keys:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch API keys' },
+      { status: 500 }
+    )
+  }
+}
+
+// POST - Save or update an API key
+export async function POST(request) {
+  try {
+    const body = await request.json()
+    const { service, encrypted_key, status = 'Saved' } = body
+    
+    if (!service || !encrypted_key) {
+      return NextResponse.json(
+        { error: 'Service and API key are required' },
+        { status: 400 }
+      )
+    }
+    
+    // Use upsert to update if exists, insert if not
+    const { data, error } = await supabase
+      .from('api_keys')
+      .upsert(
+        {
+          service,
+          encrypted_key,
+          status,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'service' }
+      )
+      .select()
+    
+    if (error) throw error
+    
+    return NextResponse.json({ 
+      message: 'API key saved successfully',
+      data 
+    })
+  } catch (error) {
+    console.error('Error saving API key:', error)
+    return NextResponse.json(
+      { error: 'Failed to save API key' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT - Update API key status only
+export async function PUT(request) {
+  try {
+    const body = await request.json()
+    const { service, status } = body
+    
+    if (!service || !status) {
+      return NextResponse.json(
+        { error: 'Service and status are required' },
+        { status: 400 }
+      )
+    }
+    
+    const { data, error } = await supabase
+      .from('api_keys')
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('service', service)
+      .select()
+    
+    if (error) throw error
+    
+    return NextResponse.json({ 
+      message: 'API key status updated successfully',
+      data 
+    })
+  } catch (error) {
+    console.error('Error updating API key status:', error)
+    return NextResponse.json(
+      { error: 'Failed to update API key status' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Remove an API key
+export async function DELETE(request) {
+  try {
+    const body = await request.json()
+    const { service } = body
+    
+    if (!service) {
+      return NextResponse.json(
+        { error: 'Service is required' },
+        { status: 400 }
+      )
+    }
+    
+    const { error } = await supabase
+      .from('api_keys')
+      .delete()
+      .eq('service', service)
+    
+    if (error) throw error
+    
+    return NextResponse.json({ 
+      message: 'API key removed successfully'
+    })
+  } catch (error) {
+    console.error('Error removing API key:', error)
+    return NextResponse.json(
+      { error: 'Failed to remove API key' },
+      { status: 500 }
+    )
+  }
+}

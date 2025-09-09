@@ -6,36 +6,44 @@ import { useState, useEffect } from 'react'
 export default function SystemSettingsPage() {
   const [apiKeys, setApiKeys] = useState({})
 
-  // Load saved API keys on component mount
+  // Load saved API keys from database on component mount
   useEffect(() => {
-    const defaultApiKeys = {
-      openai: { value: '', status: 'Not Connected' },
-      google_places: { value: '', status: 'Not Connected' },
-      hunter: { value: '', status: 'Not Connected' },
-      apollo: { value: '', status: 'Not Connected' },
-      zoominfo: { value: '', status: 'Not Connected' },
-      resend: { value: '', status: 'Not Connected' },
-    }
+    const loadApiKeys = async () => {
+      const defaultApiKeys = {
+        openai: { value: '', status: 'Not Connected' },
+        google_places: { value: '', status: 'Not Connected' },
+        hunter: { value: '', status: 'Not Connected' },
+        apollo: { value: '', status: 'Not Connected' },
+        zoominfo: { value: '', status: 'Not Connected' },
+        resend: { value: '', status: 'Not Connected' },
+      }
 
-    const savedApiKeys = localStorage.getItem('exit-school-api-keys')
-    if (savedApiKeys) {
       try {
-        const parsed = JSON.parse(savedApiKeys)
-        // Merge saved keys with defaults to ensure all API keys exist
-        const mergedApiKeys = { ...defaultApiKeys }
-        Object.keys(parsed).forEach(key => {
-          if (mergedApiKeys[key]) {
-            mergedApiKeys[key] = { ...mergedApiKeys[key], ...parsed[key] }
-          }
-        })
-        setApiKeys(mergedApiKeys)
+        const response = await fetch('/api/settings/api-keys')
+        if (response.ok) {
+          const data = await response.json()
+          const dbApiKeys = { ...defaultApiKeys }
+          
+          data.forEach(keyData => {
+            if (dbApiKeys[keyData.service]) {
+              dbApiKeys[keyData.service] = {
+                value: keyData.encrypted_key || '',
+                status: keyData.status || 'Not Connected'
+              }
+            }
+          })
+          
+          setApiKeys(dbApiKeys)
+        } else {
+          setApiKeys(defaultApiKeys)
+        }
       } catch (error) {
-        console.error('Error loading saved API keys:', error)
+        console.error('Error loading API keys from database:', error)
         setApiKeys(defaultApiKeys)
       }
-    } else {
-      setApiKeys(defaultApiKeys)
     }
+    
+    loadApiKeys()
   }, [])
 
   const [activeTab, setActiveTab] = useState('apis')
@@ -90,9 +98,31 @@ export default function SystemSettingsPage() {
   const testApiConnection = async (api) => {
     setTestingApi(api)
     
-    // Simulate API test
-    setTimeout(() => {
-      const success = Math.random() > 0.3 // 70% success rate for demo
+    try {
+      let testEndpoint = ''
+      
+      // Use specific test endpoints for each API
+      switch(api) {
+        case 'google_places':
+          testEndpoint = '/api/test-google'
+          break
+        case 'openai':
+          testEndpoint = '/api/test-openai'
+          break
+        default:
+          testEndpoint = `/api/test-${api}`
+      }
+      
+      const response = await fetch(testEndpoint)
+      const data = await response.json()
+      
+      let success = false
+      if (api === 'google_places') {
+        success = data.tests?.some(test => test.success) || false
+      } else {
+        success = response.ok
+      }
+      
       const updatedApiKeys = {
         ...apiKeys,
         [api]: {
@@ -102,49 +132,103 @@ export default function SystemSettingsPage() {
       }
       
       setApiKeys(updatedApiKeys)
-      localStorage.setItem('exit-school-api-keys', JSON.stringify(updatedApiKeys))
-      setTestingApi(null)
-    }, 2000)
-  }
-
-  const saveApiKey = (api) => {
-    // Save to localStorage for persistence
-    const updatedApiKeys = {
-      ...apiKeys,
-      [api]: {
-        ...apiKeys[api] || { value: '', status: 'Not Connected' },
-        status: apiKeys[api]?.value ? 'Saved' : 'Not Connected'
-      }
-    }
-    
-    setApiKeys(updatedApiKeys)
-    localStorage.setItem('exit-school-api-keys', JSON.stringify(updatedApiKeys))
-    
-    console.log(`Saved ${api} API key successfully`)
-    
-    // Show temporary success message
-    setTimeout(() => {
-      setApiKeys(prev => ({
-        ...prev,
+      
+      // Update database status
+      await fetch('/api/settings/api-keys', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service: api,
+          status: success ? 'Connected' : 'Connection Failed'
+        })
+      })
+      
+    } catch (error) {
+      console.error(`Error testing ${api} API:`, error)
+      const updatedApiKeys = {
+        ...apiKeys,
         [api]: {
-          ...prev[api],
-          status: prev[api].value ? 'Saved' : 'Not Connected'
+          ...apiKeys[api] || { value: '', status: 'Not Connected' },
+          status: 'Connection Failed'
         }
-      }))
-    }, 2000)
+      }
+      setApiKeys(updatedApiKeys)
+    } finally {
+      setTestingApi(null)
+    }
   }
 
-  const clearApiKey = (api) => {
-    const updatedApiKeys = {
-      ...apiKeys,
-      [api]: {
-        value: '',
-        status: 'Not Connected'
+  const saveApiKey = async (api) => {
+    try {
+      const response = await fetch('/api/settings/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service: api,
+          encrypted_key: apiKeys[api]?.value || '',
+          status: 'Saved'
+        })
+      })
+      
+      if (response.ok) {
+        const updatedApiKeys = {
+          ...apiKeys,
+          [api]: {
+            ...apiKeys[api] || { value: '', status: 'Not Connected' },
+            status: 'Saved'
+          }
+        }
+        
+        setApiKeys(updatedApiKeys)
+        console.log(`Saved ${api} API key successfully to database`)
+        
+        // Show temporary success message
+        setTimeout(() => {
+          setApiKeys(prev => ({
+            ...prev,
+            [api]: {
+              ...prev[api],
+              status: prev[api].value ? 'Saved' : 'Not Connected'
+            }
+          }))
+        }, 2000)
+      } else {
+        console.error(`Failed to save ${api} API key`)
+        alert('Failed to save API key. Please try again.')
       }
+    } catch (error) {
+      console.error(`Error saving ${api} API key:`, error)
+      alert('Error saving API key. Please try again.')
     }
-    
-    setApiKeys(updatedApiKeys)
-    localStorage.setItem('exit-school-api-keys', JSON.stringify(updatedApiKeys))
+  }
+
+  const clearApiKey = async (api) => {
+    try {
+      const response = await fetch('/api/settings/api-keys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: api })
+      })
+      
+      if (response.ok) {
+        const updatedApiKeys = {
+          ...apiKeys,
+          [api]: {
+            value: '',
+            status: 'Not Connected'
+          }
+        }
+        
+        setApiKeys(updatedApiKeys)
+        console.log(`Cleared ${api} API key from database`)
+      } else {
+        console.error(`Failed to clear ${api} API key`)
+        alert('Failed to clear API key. Please try again.')
+      }
+    } catch (error) {
+      console.error(`Error clearing ${api} API key:`, error)
+      alert('Error clearing API key. Please try again.')
+    }
   }
 
   const getStatusColor = (status) => {
