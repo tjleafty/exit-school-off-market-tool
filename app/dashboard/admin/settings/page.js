@@ -8,38 +8,51 @@ export default function SystemSettingsPage() {
 
   // Load saved API keys from database on component mount
   useEffect(() => {
-    const loadApiKeys = async () => {
-      const defaultApiKeys = {
-        openai: { value: '', status: 'Not Connected' },
-        google_places: { value: '', status: 'Not Connected' },
-        hunter: { value: '', status: 'Not Connected' },
-        apollo: { value: '', status: 'Not Connected' },
-        zoominfo: { value: '', status: 'Not Connected' },
-        resend: { value: '', status: 'Not Connected' },
-      }
+    const defaultApiKeys = {
+      openai: { value: '', status: 'Not Connected' },
+      google_places: { value: '', status: 'Not Connected' },
+      hunter: { value: '', status: 'Not Connected' },
+      apollo: { value: '', status: 'Not Connected' },
+      zoominfo: { value: '', status: 'Not Connected' },
+      resend: { value: '', status: 'Not Connected' },
+    }
 
+    // Always show default keys first
+    setApiKeys(defaultApiKeys)
+
+    const loadApiKeys = async () => {
       try {
+        console.log('Attempting to load API keys from database...')
         const response = await fetch('/api/settings/api-keys')
+        console.log('API response status:', response.status)
+        
         if (response.ok) {
           const data = await response.json()
+          console.log('API response data:', data)
           const dbApiKeys = { ...defaultApiKeys }
           
-          data.forEach(keyData => {
-            if (dbApiKeys[keyData.service]) {
-              dbApiKeys[keyData.service] = {
-                value: keyData.encrypted_key || '',
-                status: keyData.status || 'Not Connected'
+          // Always ensure google_places is visible
+          if (Array.isArray(data)) {
+            data.forEach(keyData => {
+              if (dbApiKeys[keyData.service]) {
+                dbApiKeys[keyData.service] = {
+                  value: keyData.encrypted_key || '',
+                  status: keyData.status || 'Not Connected'
+                }
               }
-            }
-          })
+            })
+          }
           
           setApiKeys(dbApiKeys)
+          console.log('Successfully loaded API keys from database:', dbApiKeys)
         } else {
-          setApiKeys(defaultApiKeys)
+          console.error('Failed to fetch API keys, keeping defaults. Status:', response.status)
+          const errorText = await response.text()
+          console.error('Error response:', errorText)
         }
       } catch (error) {
         console.error('Error loading API keys from database:', error)
-        setApiKeys(defaultApiKeys)
+        // Keep defaults that were already set
       }
     }
     
