@@ -15,7 +15,7 @@ export default function SystemSettingsPage() {
 
   // Load saved API keys from database on component mount
   useEffect(() => {
-    console.log('SystemSettingsPage: Component mounted, API keys state:', apiKeys)
+    console.log('SystemSettingsPage: Component mounted')
     
     const loadApiKeys = async () => {
       try {
@@ -28,17 +28,19 @@ export default function SystemSettingsPage() {
           console.log('📊 API response data:', data)
           
           if (Array.isArray(data)) {
-            const updatedKeys = { ...apiKeys }
-            data.forEach(keyData => {
-              if (updatedKeys[keyData.service]) {
-                updatedKeys[keyData.service] = {
-                  value: keyData.encrypted_key || '',
-                  status: keyData.status || 'Connected'
+            setApiKeys(prevKeys => {
+              const updatedKeys = { ...prevKeys }
+              data.forEach(keyData => {
+                if (updatedKeys[keyData.service]) {
+                  updatedKeys[keyData.service] = {
+                    value: keyData.encrypted_key || '',
+                    status: keyData.status || 'Connected'
+                  }
                 }
-              }
+              })
+              console.log('✅ Successfully loaded API keys from database:', updatedKeys)
+              return updatedKeys
             })
-            setApiKeys(updatedKeys)
-            console.log('✅ Successfully loaded API keys from database:', updatedKeys)
           } else {
             console.log('⚠️ No array data returned, keeping defaults')
           }
@@ -54,7 +56,7 @@ export default function SystemSettingsPage() {
     
     // Small delay to ensure component is fully mounted
     setTimeout(loadApiKeys, 100)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [activeTab, setActiveTab] = useState('apis')
   const [testingApi, setTestingApi] = useState(null)
