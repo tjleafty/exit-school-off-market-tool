@@ -85,7 +85,22 @@ export async function POST(request) {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error:', error)
+        
+        // If table doesn't exist, provide helpful error message
+        if (error.message?.includes('relation "companies" does not exist')) {
+          return NextResponse.json(
+            { 
+              error: 'Companies table not found. Please run the database migration.',
+              details: 'Execute the SQL in supabase/companies-table.sql file in your Supabase dashboard'
+            },
+            { status: 500 }
+          )
+        }
+        
+        throw error
+      }
       
       return NextResponse.json({
         success: true,
@@ -104,7 +119,22 @@ export async function POST(request) {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error:', error)
+        
+        // If table doesn't exist, provide helpful error message
+        if (error.message?.includes('relation "companies" does not exist')) {
+          return NextResponse.json(
+            { 
+              error: 'Companies table not found. Please run the database migration.',
+              details: 'Execute the SQL in supabase/companies-table.sql file in your Supabase dashboard'
+            },
+            { status: 500 }
+          )
+        }
+        
+        throw error
+      }
       
       return NextResponse.json({
         success: true,

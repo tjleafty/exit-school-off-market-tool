@@ -45,6 +45,18 @@ export async function POST(request) {
 
     if (error) {
       console.error('Error saving companies:', error)
+      
+      // If table doesn't exist, provide helpful error message
+      if (error.message?.includes('relation "companies" does not exist')) {
+        return NextResponse.json(
+          { 
+            error: 'Companies table not found. Please run the database migration script.',
+            details: 'Execute the SQL in supabase/companies-table.sql file in your Supabase dashboard'
+          },
+          { status: 500 }
+        )
+      }
+      
       throw error
     }
 
