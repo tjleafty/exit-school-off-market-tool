@@ -17,7 +17,7 @@ export default function DataEnrichmentPage() {
     try {
       setLoading(true)
       console.log('Loading companies from database...')
-      const response = await fetch('/api/companies/enrich')
+      const response = await fetch('/api/companies/list')
       console.log('Response status:', response.status)
       
       const data = await response.json()
