@@ -4,11 +4,12 @@ import { supabase } from '../../../../lib/supabase'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { query, location, type } = body // Remove apiKey from client request
+    const { query, location, type, pagetoken } = body // Support pagination with pagetoken
 
-    if (!query) {
+    // Page token is for pagination, doesn't need query
+    if (!query && !pagetoken) {
       return NextResponse.json(
-        { error: 'Query is required' },
+        { error: 'Query or page token is required' },
         { status: 400 }
       )
     }
@@ -45,13 +46,20 @@ export async function POST(request) {
       )
     }
 
-    const queryParams = new URLSearchParams({
-      query: `${query} ${location || ''}`.trim(),
-      key: apiKey,
-    })
-
-    if (type) {
-      queryParams.append('type', type)
+    const queryParams = new URLSearchParams()
+    
+    // If we have a page token, use it for pagination
+    if (pagetoken) {
+      queryParams.append('pagetoken', pagetoken)
+      queryParams.append('key', apiKey)
+    } else {
+      // Normal search
+      queryParams.append('query', `${query} ${location || ''}`.trim())
+      queryParams.append('key', apiKey)
+      
+      if (type) {
+        queryParams.append('type', type)
+      }
     }
 
     const response = await fetch(

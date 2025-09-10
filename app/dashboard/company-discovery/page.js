@@ -16,6 +16,7 @@ export default function CompanyDiscoveryPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [nextPageToken, setNextPageToken] = useState(null)
+  const [lastSearchQuery, setLastSearchQuery] = useState(null)
   
   const [filters, setFilters] = useState({
     industry: '',
@@ -40,37 +41,61 @@ export default function CompanyDiscoveryPage() {
   }, [])
 
   const handleSearch = async (isNewSearch = true) => {
-    // Build search query from filters
-    const searchQuery = []
-    if (searchTerm) searchQuery.push(searchTerm)
-    if (filters.industry) searchQuery.push(filters.industry)
-    
-    const location = []
-    if (filters.city) location.push(filters.city)
-    if (filters.state) location.push(filters.state)
-    
-    if (searchQuery.length === 0 && location.length === 0) {
-      alert('Please enter search terms or location')
-      return
-    }
+    let searchQuery, location
     
     if (isNewSearch) {
+      // Build new search query from current filters
+      searchQuery = []
+      if (searchTerm) searchQuery.push(searchTerm)
+      if (filters.industry) searchQuery.push(filters.industry)
+      
+      location = []
+      if (filters.city) location.push(filters.city)
+      if (filters.state) location.push(filters.state)
+      
+      if (searchQuery.length === 0 && location.length === 0) {
+        alert('Please enter search terms or location')
+        return
+      }
+      
+      // Save search query for pagination
+      setLastSearchQuery({
+        query: searchQuery.join(' '),
+        location: location.join(', ')
+      })
+      
       setIsSearching(true)
       setResults([])
       setCurrentPage(1)
       setNextPageToken(null)
+    } else {
+      // Use saved search query for pagination
+      if (!lastSearchQuery) {
+        console.error('No saved search query for pagination')
+        return
+      }
+      searchQuery = lastSearchQuery.query
+      location = lastSearchQuery.location
     }
     
     try {
       // Call the secure Google Places API endpoint
+      const requestBody = {
+        query: searchQuery,
+        location: location,
+        type: 'establishment'
+      }
+      
+      // Add page token for pagination
+      if (!isNewSearch && nextPageToken) {
+        requestBody.pagetoken = nextPageToken
+        console.log('Loading more with page token:', nextPageToken)
+      }
+      
       const response = await fetch('/api/places/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: searchQuery.join(' '),
-          location: location.join(', '),
-          type: 'establishment'
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -171,6 +196,47 @@ export default function CompanyDiscoveryPage() {
         ? prev.filter(id => id !== companyId)
         : [...prev, companyId]
     )
+  }
+
+  const exportSelected = () => {
+    const selectedData = results.filter(company => 
+      selectedCompanies.includes(company.id)
+    )
+    
+    if (selectedData.length === 0) {
+      alert('No companies selected for export')
+      return
+    }
+    
+    // Convert to CSV
+    const headers = ['Name', 'Address', 'City', 'State', 'Industry', 'Phone', 'Website', 'Rating', 'Reviews']
+    const csvContent = [
+      headers.join(','),
+      ...selectedData.map(company => [
+        `"${company.name || ''}"`,
+        `"${company.address || ''}"`,
+        `"${company.city || ''}"`,
+        `"${company.state || ''}"`,
+        `"${company.industry || ''}"`,
+        `"${company.phone || ''}"`,
+        `"${company.website || ''}"`,
+        company.rating || '',
+        company.user_ratings_total || ''
+      ].join(','))
+    ].join('\n')
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `companies_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    alert(`Exported ${selectedData.length} companies successfully!`)
   }
 
   const enrichCompany = async (company) => {
@@ -441,8 +507,11 @@ export default function CompanyDiscoveryPage() {
               </div>
               {selectedCompanies.length > 0 && (
                 <div className="flex space-x-2">
-                  <button className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">
-                    Export Selected
+                  <button 
+                    onClick={exportSelected}
+                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                  >
+                    Export Selected ({selectedCompanies.length})
                   </button>
                   <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
                     Add to List
