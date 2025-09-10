@@ -20,6 +20,7 @@ export async function POST(request) {
       place_id: company.place_id || company.id,
       name: company.name,
       formatted_address: company.address || company.formatted_address || company.location,
+      location: company.location || company.formatted_address || company.address,
       city: company.city,
       state: company.state,
       industry: company.industry,
