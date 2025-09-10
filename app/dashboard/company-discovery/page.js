@@ -212,7 +212,7 @@ export default function CompanyDiscoveryPage() {
       console.log('About to call save API with:', selectedData.length, 'companies')
       console.log('First company:', selectedData[0])
       
-      const response = await fetch('/api/companies/save-simple', {
+      const response = await fetch('/api/companies/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

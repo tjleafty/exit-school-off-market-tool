@@ -16,11 +16,18 @@ export default function DataEnrichmentPage() {
   const loadCompanies = async () => {
     try {
       setLoading(true)
+      console.log('Loading companies from database...')
       const response = await fetch('/api/companies/enrich')
+      console.log('Response status:', response.status)
+      
       const data = await response.json()
+      console.log('Response data:', data)
       
       if (data.success) {
+        console.log('Found companies:', data.companies?.length || 0)
         setCompanies(data.companies || [])
+      } else {
+        console.error('Failed to load companies:', data.error)
       }
     } catch (error) {
       console.error('Error loading companies:', error)
