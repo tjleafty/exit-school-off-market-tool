@@ -24,6 +24,8 @@ export default function CompanyDiscoveryPage() {
     revenueRange: '',
     stage: ''
   })
+  
+  const [enrichingCompany, setEnrichingCompany] = useState(null)
 
   // Load user info
   useEffect(() => {
@@ -169,6 +171,52 @@ export default function CompanyDiscoveryPage() {
         ? prev.filter(id => id !== companyId)
         : [...prev, companyId]
     )
+  }
+
+  const enrichCompany = async (company) => {
+    try {
+      setEnrichingCompany(company.place_id || company.id)
+      
+      const response = await fetch('/api/companies/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyData: {
+            ...company,
+            place_id: company.place_id,
+            name: company.name,
+            formatted_address: company.formatted_address || company.location,
+            types: company.types,
+            geometry: company.geometry,
+            rating: company.rating,
+            user_ratings_total: company.user_ratings_total,
+            website: company.website
+          }
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Update the company in results to show it's enriched
+        setResults(prev => 
+          prev.map(c => 
+            (c.place_id === company.place_id || c.id === company.id) 
+              ? { ...c, is_enriched: true, ...result.data }
+              : c
+          )
+        )
+        alert('Company data enriched successfully!')
+      } else {
+        console.error('Enrichment failed:', result.error)
+        alert('Failed to enrich company data. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error enriching company:', error)
+      alert('Error enriching company data. Please try again.')
+    } finally {
+      setEnrichingCompany(null)
+    }
   }
 
 
@@ -455,8 +503,13 @@ export default function CompanyDiscoveryPage() {
                             <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
                               View Details
                             </button>
-                            <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
-                              Enrich Data
+                            <button 
+                              onClick={() => enrichCompany(company)}
+                              disabled={enrichingCompany === (company.place_id || company.id) || company.is_enriched}
+                              className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {enrichingCompany === (company.place_id || company.id) ? 'Enriching...' : 
+                               company.is_enriched ? 'Enriched' : 'Enrich Data'}
                             </button>
                             {company.is_enriched && (
                               <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded text-center">

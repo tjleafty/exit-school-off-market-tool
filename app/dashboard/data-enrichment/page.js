@@ -1,10 +1,85 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function DataEnrichmentPage() {
-  const [companies] = useState([])
+  const [companies, setCompanies] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [enriching, setEnriching] = useState(null)
+
+  // Load companies from database on mount
+  useEffect(() => {
+    loadCompanies()
+  }, [])
+
+  const loadCompanies = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/companies/enrich')
+      const data = await response.json()
+      
+      if (data.success) {
+        setCompanies(data.companies || [])
+      }
+    } catch (error) {
+      console.error('Error loading companies:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const enrichCompany = async (company) => {
+    try {
+      setEnriching(company.id)
+      
+      const response = await fetch('/api/companies/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: company.id,
+          companyData: company
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Update the company in the list
+        setCompanies(prev => 
+          prev.map(c => c.id === company.id ? result.data : c)
+        )
+        console.log('Company enriched successfully:', result.data)
+      } else {
+        console.error('Enrichment failed:', result.error)
+        alert('Failed to enrich company data. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error enriching company:', error)
+      alert('Error enriching company data. Please try again.')
+    } finally {
+      setEnriching(null)
+    }
+  }
+
+  const enrichAll = async () => {
+    const unenrichedCompanies = companies.filter(c => !c.is_enriched)
+    
+    if (unenrichedCompanies.length === 0) {
+      alert('All companies are already enriched!')
+      return
+    }
+
+    if (!confirm(`Enrich ${unenrichedCompanies.length} companies?`)) {
+      return
+    }
+
+    for (const company of unenrichedCompanies) {
+      await enrichCompany(company)
+      // Add a small delay between requests to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,7 +138,7 @@ export default function DataEnrichmentPage() {
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Enriched</dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {companies.filter(c => c.enriched).length}
+                        {companies.filter(c => c.is_enriched).length}
                       </dd>
                     </dl>
                   </div>
@@ -81,7 +156,7 @@ export default function DataEnrichmentPage() {
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {companies.filter(c => !c.enriched).length}
+                        {companies.filter(c => !c.is_enriched).length}
                       </dd>
                     </dl>
                   </div>
@@ -96,12 +171,21 @@ export default function DataEnrichmentPage() {
                 <h3 className="text-lg leading-6 font-medium text-gray-900">Company Data</h3>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">Manage and enrich your company database</p>
               </div>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                Enrich All
+              <button 
+                onClick={enrichAll}
+                disabled={loading || companies.filter(c => !c.is_enriched).length === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Loading...' : 'Enrich All'}
               </button>
             </div>
             
-            {companies.length > 0 ? (
+            {loading ? (
+              <div className="px-6 py-12 text-center">
+                <div className="text-gray-400 text-6xl mb-4 animate-pulse">⏳</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Companies...</h3>
+              </div>
+            ) : companies.length > 0 ? (
               <ul className="divide-y divide-gray-200">
                 {companies.map((company) => (
                   <li key={company.id} className="px-6 py-4">
@@ -110,24 +194,32 @@ export default function DataEnrichmentPage() {
                         <div className="flex items-center">
                           <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
                           <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                            company.enriched 
+                            company.is_enriched 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {company.enriched ? 'Enriched' : 'Pending'}
+                            {company.is_enriched ? 'Enriched' : 'Pending'}
                           </span>
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
-                          <div>📧 {company.email}</div>
-                          <div>📞 {company.phone}</div>
-                          <div>🌐 {company.website}</div>
-                          <div>📅 Updated: {company.lastUpdated}</div>
+                          <div>📧 {company.email || 'No email'}</div>
+                          <div>📞 {company.phone || company.formatted_phone_number || 'No phone'}</div>
+                          <div>🌐 {company.website ? (
+                            <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              {new URL(company.website).hostname}
+                            </a>
+                          ) : 'No website'}</div>
+                          <div>📅 Updated: {company.updated_at ? new Date(company.updated_at).toLocaleDateString() : 'Never'}</div>
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        {!company.enriched && (
-                          <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
-                            Enrich Now
+                        {!company.is_enriched && (
+                          <button 
+                            onClick={() => enrichCompany(company)}
+                            disabled={enriching === company.id}
+                            className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {enriching === company.id ? 'Enriching...' : 'Enrich Now'}
                           </button>
                         )}
                         <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
@@ -143,6 +235,12 @@ export default function DataEnrichmentPage() {
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Data to Enrich</h3>
                 <p className="text-gray-600">Companies discovered through search will appear here for data enrichment.</p>
+                <Link 
+                  href="/dashboard/company-discovery"
+                  className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Discover Companies
+                </Link>
               </div>
             )}
           </div>
