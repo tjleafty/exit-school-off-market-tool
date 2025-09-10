@@ -198,6 +198,50 @@ export default function CompanyDiscoveryPage() {
     )
   }
 
+  const addToList = async () => {
+    const selectedData = results.filter(company => 
+      selectedCompanies.includes(company.id)
+    )
+    
+    if (selectedData.length === 0) {
+      alert('No companies selected')
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/companies/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companies: selectedData
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(result.message)
+        // Clear selection after successful save
+        setSelectedCompanies([])
+        // Mark saved companies as added to list
+        setResults(prev => 
+          prev.map(company => {
+            if (selectedCompanies.includes(company.id)) {
+              return { ...company, addedToList: true }
+            }
+            return company
+          })
+        )
+      } else {
+        console.error('Failed to save companies:', result.error)
+        alert('Failed to add companies to list. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error adding companies to list:', error)
+      alert('Error adding companies to list. Please try again.')
+    }
+  }
+
   const exportSelected = () => {
     const selectedData = results.filter(company => 
       selectedCompanies.includes(company.id)
@@ -513,8 +557,11 @@ export default function CompanyDiscoveryPage() {
                   >
                     Export Selected ({selectedCompanies.length})
                   </button>
-                  <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
-                    Add to List
+                  <button 
+                    onClick={addToList}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                  >
+                    Add to List ({selectedCompanies.length})
                   </button>
                 </div>
               )}
@@ -534,7 +581,14 @@ export default function CompanyDiscoveryPage() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
+                              {company.addedToList && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                                  ✓ In List
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-600">
                               {company.industry || 'Industry N/A'} • {company.location || 'Location N/A'}
                             </p>
