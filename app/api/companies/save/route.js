@@ -15,7 +15,7 @@ export async function POST(request) {
 
     console.log(`Saving ${companies.length} companies to database...`)
 
-    // Prepare companies for insertion
+    // Prepare companies for insertion (simplified for basic table)
     const companiesData = companies.map(company => ({
       place_id: company.place_id || company.id,
       name: company.name,
@@ -26,13 +26,11 @@ export async function POST(request) {
       industry: company.industry,
       phone: company.phone || company.formatted_phone_number,
       website: company.website,
-      rating: company.rating,
-      user_ratings_total: company.user_ratings_total,
-      types: company.types,
-      geometry: company.geometry,
-      is_enriched: company.is_enriched || false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      rating: company.rating ? parseFloat(company.rating) : null,
+      user_ratings_total: company.user_ratings_total ? parseInt(company.user_ratings_total) : null,
+      types: Array.isArray(company.types) ? company.types.join(', ') : (company.types || ''),
+      geometry: typeof company.geometry === 'object' ? JSON.stringify(company.geometry) : (company.geometry || ''),
+      is_enriched: company.is_enriched || false
     }))
 
     // Use upsert to avoid duplicates (update if exists, insert if not)
