@@ -7,6 +7,7 @@ export default function DataEnrichmentPage() {
   const [companies, setCompanies] = useState([])
   const [loading, setLoading] = useState(true)
   const [enriching, setEnriching] = useState(null)
+  const [generatingReport, setGeneratingReport] = useState(null)
 
   // Load companies from database on mount
   useEffect(() => {
@@ -88,6 +89,40 @@ export default function DataEnrichmentPage() {
     }
   }
 
+  const generateBIReport = async (company) => {
+    try {
+      setGeneratingReport(company.id)
+      
+      const response = await fetch('/api/companies/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: company.id,
+          tier: 'BI',
+          userId: 'current-user' // You may want to get this from user context
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // Update the company to show it has a report
+        setCompanies(prev => 
+          prev.map(c => c.id === company.id ? { ...c, has_bi_report: true, is_enriched: true } : c)
+        )
+        alert(`${result.message}\n\nThe BI report includes automatic data enrichment.`)
+      } else {
+        console.error('BI Report generation failed:', result.error)
+        alert('Failed to generate Business Intelligence report. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error generating BI report:', error)
+      alert('Error generating Business Intelligence report. Please try again.')
+    } finally {
+      setGeneratingReport(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
@@ -114,8 +149,13 @@ export default function DataEnrichmentPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Data Enrichment</h2>
-            <p className="text-gray-600">Enhance company data with additional contact information and insights</p>
+            <h2 className="text-2xl font-bold text-gray-900">Data Enrichment & Business Intelligence</h2>
+            <p className="text-gray-600">Enhance company data or generate comprehensive business intelligence reports</p>
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+              <strong>Two Options:</strong> 
+              <span className="ml-2"><strong>Enrich Data</strong> - Add contact info and basic details</span>
+              <span className="ml-4"><strong>Generate BI Report</strong> - Comprehensive analysis (includes enrichment)</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-6">
@@ -219,19 +259,35 @@ export default function DataEnrichmentPage() {
                           <div>📅 Updated: {company.updated_at ? new Date(company.updated_at).toLocaleDateString() : 'Never'}</div>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        {!company.is_enriched && (
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex space-x-2">
+                          {!company.is_enriched && (
+                            <button 
+                              onClick={() => enrichCompany(company)}
+                              disabled={enriching === company.id}
+                              className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {enriching === company.id ? 'Enriching...' : 'Enrich Data'}
+                            </button>
+                          )}
                           <button 
-                            onClick={() => enrichCompany(company)}
-                            disabled={enriching === company.id}
-                            className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50"
+                            onClick={() => generateBIReport(company)}
+                            disabled={generatingReport === company.id}
+                            className="px-3 py-1 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 disabled:opacity-50"
                           >
-                            {enriching === company.id ? 'Enriching...' : 'Enrich Now'}
+                            {generatingReport === company.id ? 'Generating...' : 'Generate BI Report'}
                           </button>
-                        )}
-                        <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
-                          View Details
-                        </button>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
+                            View Details
+                          </button>
+                          {company.has_bi_report && (
+                            <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">
+                              ✓ BI Report Ready
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </li>

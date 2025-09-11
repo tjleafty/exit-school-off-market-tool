@@ -38,7 +38,7 @@ export async function POST(request) {
         user_ratings_total: company.user_ratings_total ? parseInt(company.user_ratings_total) : null,
         types: Array.isArray(company.types) ? company.types.join(', ') : (company.types ? String(company.types) : null),
         geometry: company.geometry ? (typeof company.geometry === 'object' ? JSON.stringify(company.geometry) : String(company.geometry)) : null,
-        is_enriched: Boolean(company.is_enriched)
+        is_enriched: false // Companies are never enriched when first added to list
       }
       
       console.log(`Processed company ${index + 1}:`, processedCompany)

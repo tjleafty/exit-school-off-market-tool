@@ -259,7 +259,7 @@ export default function CompanyDiscoveryPage() {
     }
     
     // Convert to CSV
-    const headers = ['Name', 'Address', 'City', 'State', 'Industry', 'Phone', 'Website', 'Rating', 'Reviews']
+    const headers = ['Name', 'Address', 'City', 'State', 'Industry', 'Phone', 'Website', 'Google Rating', 'Review Count']
     const csvContent = [
       headers.join(','),
       ...selectedData.map(company => [
@@ -270,7 +270,7 @@ export default function CompanyDiscoveryPage() {
         `"${company.industry || ''}"`,
         `"${company.phone || ''}"`,
         `"${company.website || ''}"`,
-        company.rating || '',
+        company.rating ? company.rating.toFixed(1) : '',
         company.user_ratings_total || ''
       ].join(','))
     ].join('\n')
@@ -602,6 +602,17 @@ export default function CompanyDiscoveryPage() {
                               <p className="text-sm text-gray-500 mt-1">{company.description}</p>
                             )}
                             <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
+                              {/* Google Reviews Section - Most Important */}
+                              {company.rating && (
+                                <span className="flex items-center gap-1 font-medium text-amber-600">
+                                  ⭐ {company.rating.toFixed(1)}
+                                  {company.user_ratings_total && (
+                                    <span className="text-gray-500">({company.user_ratings_total} reviews)</span>
+                                  )}
+                                </span>
+                              )}
+                              
+                              {/* Other Company Details */}
                               <span>👥 {company.employees_range || 'N/A'}</span>
                               <span>💰 {company.revenue_range || 'N/A'}</span>
                               <span>📈 {company.company_stage || 'N/A'}</span>
