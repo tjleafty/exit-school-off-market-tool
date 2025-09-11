@@ -7,10 +7,29 @@ export async function GET(request) {
     
     const { searchParams } = new URL(request.url)
     const enrichedOnly = searchParams.get('enriched') === 'true'
+    const userId = searchParams.get('userId')
     
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required to filter companies' },
+        { status: 400 }
+      )
+    }
+
+    // Join with searches table to filter by user
     let query = supabase
       .from('companies')
-      .select('*')
+      .select(`
+        *,
+        searches!inner(
+          user_id,
+          name,
+          industry,
+          city,
+          state
+        )
+      `)
+      .eq('searches.user_id', userId)
       .order('created_at', { ascending: false })
 
     if (enrichedOnly) {
@@ -28,7 +47,7 @@ export async function GET(request) {
         return NextResponse.json(
           { 
             error: 'Companies table not found. Please run the database migration.',
-            details: 'Execute the SQL in supabase/companies-table.sql file in your Supabase dashboard'
+            details: 'Execute the SQL in supabase/fix-user-isolation.sql file in your Supabase dashboard'
           },
           { status: 500 }
         )

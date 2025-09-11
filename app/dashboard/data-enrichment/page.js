@@ -8,17 +8,31 @@ export default function DataEnrichmentPage() {
   const [loading, setLoading] = useState(true)
   const [enriching, setEnriching] = useState(null)
   const [generatingReport, setGeneratingReport] = useState(null)
+  const [user, setUser] = useState(null)
+
+  // Load user from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user')
+      if (userStr) {
+        const userData = JSON.parse(userStr)
+        setUser(userData)
+      }
+    }
+  }, [])
 
   // Load companies from database on mount
   useEffect(() => {
-    loadCompanies()
-  }, [])
+    if (user?.id) {
+      loadCompanies()
+    }
+  }, [user])
 
   const loadCompanies = async () => {
     try {
       setLoading(true)
       console.log('Loading companies from database...')
-      const response = await fetch('/api/companies/list')
+      const response = await fetch(`/api/companies/list?userId=${user?.id}`)
       console.log('Response status:', response.status)
       
       const data = await response.json()
@@ -99,7 +113,7 @@ export default function DataEnrichmentPage() {
         body: JSON.stringify({
           companyId: company.id,
           tier: 'BI',
-          userId: 'current-user' // You may want to get this from user context
+          userId: user?.id
         })
       })
 

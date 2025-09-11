@@ -7,7 +7,7 @@ export async function POST(request) {
     const body = await request.json()
     console.log('Request body:', JSON.stringify(body, null, 2))
     
-    const { companies } = body
+    const { companies, userId, searchName, industry, city, state } = body
 
     if (!companies || !Array.isArray(companies) || companies.length === 0) {
       console.log('Error: No companies provided or invalid format')
@@ -17,14 +17,66 @@ export async function POST(request) {
       )
     }
 
-    console.log(`Saving ${companies.length} companies to database...`)
+    if (!userId) {
+      console.log('Error: User ID is required for company isolation')
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      )
+    }
+
+    console.log(`Saving ${companies.length} companies to database for user ${userId}...`)
     console.log('First company sample:', JSON.stringify(companies[0], null, 2))
 
-    // Prepare companies for insertion (minimal required fields only)
+    // Step 1: Get or create a search for this user
+    let searchId
+    const searchNameToUse = searchName || `Companies from ${city || 'Search'} - ${new Date().toLocaleDateString()}`
+    
+    // First, try to find an existing search that matches
+    const { data: existingSearch, error: searchError } = await supabase
+      .from('searches')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', searchNameToUse)
+      .limit(1)
+      .single()
+
+    if (existingSearch && !searchError) {
+      searchId = existingSearch.id
+      console.log('Using existing search:', searchId)
+    } else {
+      // Create a new search
+      const { data: newSearch, error: createSearchError } = await supabase
+        .from('searches')
+        .insert([{
+          user_id: userId,
+          name: searchNameToUse,
+          industry: industry || 'General',
+          city: city || 'Unknown',
+          state: state || 'Unknown',
+          results_data: []
+        }])
+        .select('id')
+        .single()
+
+      if (createSearchError) {
+        console.error('Error creating search:', createSearchError)
+        return NextResponse.json(
+          { error: 'Failed to create search context', details: createSearchError.message },
+          { status: 500 }
+        )
+      }
+
+      searchId = newSearch.id
+      console.log('Created new search:', searchId)
+    }
+
+    // Step 2: Prepare companies for insertion with search_id
     const companiesData = companies.map((company, index) => {
       console.log(`Processing company ${index + 1}:`, company.name)
       
       const processedCompany = {
+        search_id: searchId, // Link to the user's search
         place_id: String(company.place_id || company.id || `temp_${Date.now()}_${index}`),
         name: String(company.name || 'Unknown Company'),
         formatted_address: String(company.address || company.formatted_address || company.location || ''),

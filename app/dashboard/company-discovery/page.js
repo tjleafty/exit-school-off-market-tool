@@ -216,7 +216,12 @@ export default function CompanyDiscoveryPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companies: selectedData
+          companies: selectedData,
+          userId: user?.id,
+          searchName: `${searchTerm || 'Companies'} - ${filters.city || filters.state || 'Search'} - ${new Date().toLocaleDateString()}`,
+          industry: searchTerm || 'General',
+          city: filters.city || 'Unknown',
+          state: filters.state || 'Unknown'
         })
       })
       
