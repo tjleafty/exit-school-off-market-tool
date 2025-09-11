@@ -28,55 +28,12 @@ export async function POST(request) {
     console.log(`Saving ${companies.length} companies to database for user ${userId}...`)
     console.log('First company sample:', JSON.stringify(companies[0], null, 2))
 
-    // Step 1: Get or create a search for this user
-    let searchId
-    const searchNameToUse = searchName || `Companies from ${city || 'Search'} - ${new Date().toLocaleDateString()}`
-    
-    // First, try to find an existing search that matches
-    const { data: existingSearch, error: searchError } = await supabase
-      .from('searches')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('name', searchNameToUse)
-      .limit(1)
-      .single()
-
-    if (existingSearch && !searchError) {
-      searchId = existingSearch.id
-      console.log('Using existing search:', searchId)
-    } else {
-      // Create a new search
-      const { data: newSearch, error: createSearchError } = await supabase
-        .from('searches')
-        .insert([{
-          user_id: userId,
-          name: searchNameToUse,
-          industry: industry || 'General',
-          city: city || 'Unknown',
-          state: state || 'Unknown',
-          results_data: []
-        }])
-        .select('id')
-        .single()
-
-      if (createSearchError) {
-        console.error('Error creating search:', createSearchError)
-        return NextResponse.json(
-          { error: 'Failed to create search context', details: createSearchError.message },
-          { status: 500 }
-        )
-      }
-
-      searchId = newSearch.id
-      console.log('Created new search:', searchId)
-    }
-
-    // Step 2: Prepare companies for insertion with search_id
+    // Step 1: Prepare companies for insertion with user_id directly
     const companiesData = companies.map((company, index) => {
       console.log(`Processing company ${index + 1}:`, company.name)
       
       const processedCompany = {
-        search_id: searchId, // Link to the user's search
+        user_id: userId, // Link directly to the user
         place_id: String(company.place_id || company.id || `temp_${Date.now()}_${index}`),
         name: String(company.name || 'Unknown Company'),
         formatted_address: String(company.address || company.formatted_address || company.location || ''),
@@ -96,6 +53,37 @@ export async function POST(request) {
       console.log(`Processed company ${index + 1}:`, processedCompany)
       return processedCompany
     })
+
+    // Step 1.5: Verify user exists in auth.users table, if not create a temporary user record
+    console.log('Checking if user exists in auth.users table...')
+    const { data: existingUser, error: userCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single()
+
+    if (userCheckError && userCheckError.code === 'PGRST116') {
+      console.log('User not found in users table, creating temporary user record...')
+      // User doesn't exist, create a basic user record
+      const { error: createUserError } = await supabase
+        .from('users')
+        .insert([{
+          id: userId,
+          email: `temp-user-${userId}@example.com`,
+          role: 'USER',
+          status: 'ACTIVE',
+          created_at: new Date().toISOString()
+        }])
+      
+      if (createUserError) {
+        console.error('Failed to create temporary user:', createUserError)
+        // Continue anyway, the user might exist in auth.users but not public.users
+      } else {
+        console.log('Temporary user record created successfully')
+      }
+    } else if (existingUser) {
+      console.log('User exists in users table:', existingUser.id)
+    }
     
     console.log('About to insert companies data:', companiesData.length, 'companies')
 

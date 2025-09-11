@@ -16,20 +16,40 @@ export async function GET(request) {
       )
     }
 
-    // Join with searches table to filter by user
+    // Verify user exists, if not return empty results
+    console.log('Checking if user exists in users table...')
+    const { data: existingUser, error: userCheckError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single()
+
+    if (userCheckError && userCheckError.code === 'PGRST116') {
+      console.log('User not found in users table, creating temporary user record...')
+      // User doesn't exist, create a basic user record like save API does
+      const { error: createUserError } = await supabase
+        .from('users')
+        .insert([{
+          id: userId,
+          email: `temp-user-${userId}@example.com`,
+          role: 'USER',
+          status: 'ACTIVE',
+          created_at: new Date().toISOString()
+        }])
+      
+      if (createUserError) {
+        console.error('Failed to create temporary user:', createUserError)
+        // Continue anyway - user might exist in auth but not public.users
+      } else {
+        console.log('Temporary user record created successfully for list API')
+      }
+    }
+
+    // Filter companies by user_id directly (simplified approach)
     let query = supabase
       .from('companies')
-      .select(`
-        *,
-        searches!inner(
-          user_id,
-          name,
-          industry,
-          city,
-          state
-        )
-      `)
-      .eq('searches.user_id', userId)
+      .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (enrichedOnly) {
