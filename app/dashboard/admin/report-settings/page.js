@@ -190,7 +190,7 @@ export default function AdminReportSettingsPage() {
                   </span>
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Defines the AI's role and overall approach for {activeTab} reports
+                  Defines the AI&apos;s role and overall approach for {activeTab} reports
                 </p>
               </div>
               <textarea
