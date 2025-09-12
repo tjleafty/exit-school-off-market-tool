@@ -124,13 +124,9 @@ function validateSettings(settings) {
   const requiredReportTypes = ['enhanced', 'bi']
   const requiredEnhancedSections = [
     'system_prompt',
-    'executive_summary', 
-    'company_overview',
     'company_owner_info',
     'employees',
-    'revenue',
-    'growth_opportunities',
-    'recommendations'
+    'company_structure'
   ]
   const requiredBISections = [
     'system_prompt',
@@ -154,7 +150,7 @@ function validateSettings(settings) {
       const sectionData = settings[reportType][section]
       
       // Handle enriched data sections (objects with prompt and api)
-      if (reportType === 'enhanced' && ['company_owner_info', 'employees', 'revenue'].includes(section)) {
+      if (reportType === 'enhanced' && ['company_owner_info', 'employees', 'company_structure'].includes(section)) {
         if (!sectionData || typeof sectionData !== 'object') {
           throw new Error(`Missing or invalid ${section} in ${reportType} settings`)
         }
@@ -178,8 +174,6 @@ function getDefaultSettings() {
   return {
     enhanced: {
       system_prompt: "You are a business analyst creating an enhanced company overview report. Provide clear, concise insights about the company's potential and key opportunities. Keep the analysis practical and focused on immediate opportunities.",
-      executive_summary: "Generate a comprehensive 2-3 paragraph executive summary that highlights the company's key strengths, market position, and primary opportunities for partnership or engagement.",
-      company_overview: "Provide a detailed analysis of the company's operations, market presence, and competitive positioning based on available data.",
       company_owner_info: {
         prompt: "Analyze company ownership, leadership structure, and key decision makers based on enriched data. Include owner contact information, background, and decision-making authority for partnership discussions.",
         api: "hunter"
@@ -188,12 +182,10 @@ function getDefaultSettings() {
         prompt: "Evaluate company size, employee count, organizational structure, and workforce composition using available data. Assess team capabilities and organizational maturity for partnership evaluation.",
         api: "apollo"
       },
-      revenue: {
-        prompt: "Assess financial performance, revenue estimates, and business scale based on available financial data. Include growth indicators and financial health assessment for partnership viability.",
+      company_structure: {
+        prompt: "Analyze company structure, organizational hierarchy, business model, and operational framework using available data. Assess corporate structure and organizational maturity for partnership evaluation.",
         api: "zoominfo"
-      },
-      growth_opportunities: "Identify specific growth opportunities, partnership potential, and areas for business development collaboration.",
-      recommendations: "Provide actionable recommendations for engagement, partnership approaches, and next steps for business development."
+      }
     },
     bi: {
       system_prompt: "You are a business intelligence analyst creating a comprehensive B2B company report. Generate detailed insights with market analysis, financial projections, and strategic recommendations. Focus on data-driven insights and actionable intelligence.",
