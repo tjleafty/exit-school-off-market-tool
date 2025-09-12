@@ -126,7 +126,9 @@ function validateSettings(settings) {
     'system_prompt',
     'executive_summary', 
     'company_overview',
-    'key_personnel',
+    'company_owner_info',
+    'employees',
+    'revenue',
     'growth_opportunities',
     'recommendations'
   ]
@@ -149,8 +151,24 @@ function validateSettings(settings) {
 
     const sections = reportType === 'enhanced' ? requiredEnhancedSections : requiredBISections
     for (const section of sections) {
-      if (!settings[reportType][section] || typeof settings[reportType][section] !== 'string') {
-        throw new Error(`Missing or invalid ${section} in ${reportType} settings`)
+      const sectionData = settings[reportType][section]
+      
+      // Handle enriched data sections (objects with prompt and api)
+      if (reportType === 'enhanced' && ['company_owner_info', 'employees', 'revenue'].includes(section)) {
+        if (!sectionData || typeof sectionData !== 'object') {
+          throw new Error(`Missing or invalid ${section} in ${reportType} settings`)
+        }
+        if (!sectionData.prompt || typeof sectionData.prompt !== 'string') {
+          throw new Error(`Missing or invalid prompt in ${section} for ${reportType} settings`)
+        }
+        if (!sectionData.api || typeof sectionData.api !== 'string') {
+          throw new Error(`Missing or invalid api in ${section} for ${reportType} settings`)
+        }
+      } else {
+        // Handle regular sections (strings)
+        if (!sectionData || typeof sectionData !== 'string') {
+          throw new Error(`Missing or invalid ${section} in ${reportType} settings`)
+        }
       }
     }
   }
@@ -162,7 +180,18 @@ function getDefaultSettings() {
       system_prompt: "You are a business analyst creating an enhanced company overview report. Provide clear, concise insights about the company's potential and key opportunities. Keep the analysis practical and focused on immediate opportunities.",
       executive_summary: "Generate a comprehensive 2-3 paragraph executive summary that highlights the company's key strengths, market position, and primary opportunities for partnership or engagement.",
       company_overview: "Provide a detailed analysis of the company's operations, market presence, and competitive positioning based on available data.",
-      key_personnel: "Identify and analyze key personnel, leadership structure, and important contacts based on available data.",
+      company_owner_info: {
+        prompt: "Analyze company ownership, leadership structure, and key decision makers based on enriched data. Include owner contact information, background, and decision-making authority for partnership discussions.",
+        api: "hunter"
+      },
+      employees: {
+        prompt: "Evaluate company size, employee count, organizational structure, and workforce composition using available data. Assess team capabilities and organizational maturity for partnership evaluation.",
+        api: "apollo"
+      },
+      revenue: {
+        prompt: "Assess financial performance, revenue estimates, and business scale based on available financial data. Include growth indicators and financial health assessment for partnership viability.",
+        api: "zoominfo"
+      },
       growth_opportunities: "Identify specific growth opportunities, partnership potential, and areas for business development collaboration.",
       recommendations: "Provide actionable recommendations for engagement, partnership approaches, and next steps for business development."
     },

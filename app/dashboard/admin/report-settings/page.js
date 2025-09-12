@@ -8,13 +8,33 @@ export default function AdminReportSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('enhanced')
   
+  // Available APIs for enriched data
+  const availableApis = {
+    hunter: { name: 'Hunter.io', description: 'Email finding and verification' },
+    apollo: { name: 'Apollo.io', description: 'B2B contact and company database' },
+    zoominfo: { name: 'ZoomInfo', description: 'Business intelligence and contact data' },
+    google_places: { name: 'Google Places', description: 'Company location and business info' },
+    openai: { name: 'OpenAI', description: 'AI analysis and insights' }
+  }
+  
   // Default prompts based on current system
   const [settings, setSettings] = useState({
     enhanced: {
       system_prompt: "You are a business analyst creating an enhanced company overview report. Provide clear, concise insights about the company's potential and key opportunities. Keep the analysis practical and focused on immediate opportunities.",
       executive_summary: "Generate a comprehensive 2-3 paragraph executive summary that provides a high-level overview of the company's business model, market position, and key value propositions. Focus on what makes this company unique and why they would be an attractive business partner or acquisition target.",
       company_overview: "Provide a detailed analysis of the company's operations, business model, market presence, and competitive positioning. Include insights about their services/products, target market, and operational scale based on available data.",
-      key_personnel: "Analyze the available leadership and key personnel data. Identify decision-makers, their backgrounds, and contact information. Assess the leadership team's experience and potential influence on partnership discussions.",
+      company_owner_info: {
+        prompt: "Analyze company ownership, leadership structure, and key decision makers based on enriched data. Include owner contact information, background, and decision-making authority for partnership discussions.",
+        api: "hunter"
+      },
+      employees: {
+        prompt: "Evaluate company size, employee count, organizational structure, and workforce composition using available data. Assess team capabilities and organizational maturity for partnership evaluation.",
+        api: "apollo"
+      },
+      revenue: {
+        prompt: "Assess financial performance, revenue estimates, and business scale based on available financial data. Include growth indicators and financial health assessment for partnership viability.",
+        api: "zoominfo"
+      },
       growth_opportunities: "Identify specific, actionable growth opportunities and partnership potential. Focus on concrete ways this company could expand, areas where they might need partners, and specific value propositions for business development outreach.",
       recommendations: "Provide clear, actionable next steps for business development engagement. Include recommended approach strategies, key talking points, and specific actions to take for initial outreach and relationship building."
     },
@@ -87,6 +107,19 @@ export default function AdminReportSettingsPage() {
       [tier]: {
         ...prev[tier],
         [section]: value
+      }
+    }))
+  }
+
+  const updateEnrichedDataPrompt = (tier, section, field, value) => {
+    setSettings(prev => ({
+      ...prev,
+      [tier]: {
+        ...prev[tier],
+        [section]: {
+          ...prev[tier][section],
+          [field]: value
+        }
       }
     }))
   }
@@ -279,20 +312,90 @@ export default function AdminReportSettingsPage() {
                 </div>
               )}
 
-              {/* Key Personnel */}
+              {/* Company Owner Info */}
               <div className="bg-white shadow rounded-lg p-6">
                 <div className="mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">👥 Key Personnel</h3>
-                  <p className="text-sm text-gray-600">Leadership and decision-maker analysis</p>
+                  <h3 className="text-lg font-medium text-gray-900">👤 Company Owner Info</h3>
+                  <p className="text-sm text-gray-600">Ownership and leadership analysis with enriched data</p>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">API Source</label>
+                  <select
+                    value={currentSettings.company_owner_info?.api || 'hunter'}
+                    onChange={(e) => updateEnrichedDataPrompt(activeTab, 'company_owner_info', 'api', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {Object.entries(availableApis).map(([key, api]) => (
+                      <option key={key} value={key}>{api.name} - {api.description}</option>
+                    ))}
+                  </select>
                 </div>
                 <textarea
-                  value={currentSettings.key_personnel}
-                  onChange={(e) => updatePrompt(activeTab, 'key_personnel', e.target.value)}
+                  value={currentSettings.company_owner_info?.prompt || ''}
+                  onChange={(e) => updateEnrichedDataPrompt(activeTab, 'company_owner_info', 'prompt', e.target.value)}
                   rows={5}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <div className="mt-2 text-xs text-gray-500">
-                  {currentSettings.key_personnel.length} chars
+                  {currentSettings.company_owner_info?.prompt?.length || 0} chars
+                </div>
+              </div>
+
+              {/* Employees */}
+              <div className="bg-white shadow rounded-lg p-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">👥 Employees</h3>
+                  <p className="text-sm text-gray-600">Employee count and organizational structure analysis</p>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">API Source</label>
+                  <select
+                    value={currentSettings.employees?.api || 'apollo'}
+                    onChange={(e) => updateEnrichedDataPrompt(activeTab, 'employees', 'api', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {Object.entries(availableApis).map(([key, api]) => (
+                      <option key={key} value={key}>{api.name} - {api.description}</option>
+                    ))}
+                  </select>
+                </div>
+                <textarea
+                  value={currentSettings.employees?.prompt || ''}
+                  onChange={(e) => updateEnrichedDataPrompt(activeTab, 'employees', 'prompt', e.target.value)}
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <div className="mt-2 text-xs text-gray-500">
+                  {currentSettings.employees?.prompt?.length || 0} chars
+                </div>
+              </div>
+
+              {/* Revenue */}
+              <div className="bg-white shadow rounded-lg p-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">💰 Revenue</h3>
+                  <p className="text-sm text-gray-600">Financial performance and revenue analysis</p>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">API Source</label>
+                  <select
+                    value={currentSettings.revenue?.api || 'zoominfo'}
+                    onChange={(e) => updateEnrichedDataPrompt(activeTab, 'revenue', 'api', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {Object.entries(availableApis).map(([key, api]) => (
+                      <option key={key} value={key}>{api.name} - {api.description}</option>
+                    ))}
+                  </select>
+                </div>
+                <textarea
+                  value={currentSettings.revenue?.prompt || ''}
+                  onChange={(e) => updateEnrichedDataPrompt(activeTab, 'revenue', 'prompt', e.target.value)}
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <div className="mt-2 text-xs text-gray-500">
+                  {currentSettings.revenue?.prompt?.length || 0} chars
                 </div>
               </div>
 
@@ -379,7 +482,7 @@ export default function AdminReportSettingsPage() {
             <h3 className="text-lg font-medium text-blue-900 mb-3">💡 Usage Instructions</h3>
             <div className="text-sm text-blue-800 space-y-2">
               <p><strong>Prompt Variables:</strong> Use {`{company_name}`}, {`{industry}`}, {`{location}`}, etc. in your prompts</p>
-              <p><strong>Enhanced Reports:</strong> Focus on practical, immediate opportunities (5 sections)</p>
+              <p><strong>Enhanced Reports:</strong> Focus on practical, immediate opportunities with enriched data analysis (7 sections)</p>
               <p><strong>BI Reports:</strong> Comprehensive analysis with market and financial insights (8 sections)</p>
               <p><strong>Best Practices:</strong> Be specific, actionable, and data-driven in your prompts</p>
               <p><strong>Testing:</strong> Always test prompt changes on sample companies before production use</p>
