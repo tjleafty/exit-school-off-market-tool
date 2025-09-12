@@ -7,6 +7,7 @@ export default function AdminReportSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('enhanced')
+  const [usingDefaults, setUsingDefaults] = useState(false)
   
   // Available APIs for enriched data
   const availableApis = {
@@ -60,9 +61,11 @@ export default function AdminReportSettingsPage() {
         const data = await response.json()
         if (data.settings) {
           setSettings(data.settings)
+          setUsingDefaults(data.usingDefaults || false)
         }
       } else {
         console.log('No existing settings found, using defaults')
+        setUsingDefaults(true)
       }
     } catch (error) {
       console.error('Error loading settings:', error)
@@ -79,7 +82,7 @@ export default function AdminReportSettingsPage() {
       const response = await fetch('/api/admin/report-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+        body: JSON.stringify({ settings })
       })
 
       const data = await response.json()
@@ -87,7 +90,11 @@ export default function AdminReportSettingsPage() {
       if (data.success) {
         alert('Report settings saved successfully!')
       } else {
-        alert('Failed to save settings: ' + (data.error || 'Unknown error'))
+        if (data.tableExists === false) {
+          alert('Database table does not exist yet. Report settings cannot be saved until the database is properly configured. You can still modify the settings, but they will not persist until the table is created.')
+        } else {
+          alert('Failed to save settings: ' + (data.error || 'Unknown error'))
+        }
       }
     } catch (error) {
       console.error('Error saving settings:', error)
@@ -168,6 +175,17 @@ export default function AdminReportSettingsPage() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Business Intelligence Report Settings</h2>
             <p className="text-gray-600">Configure AI prompts for each section of the BI reports</p>
+            {usingDefaults && (
+              <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div className="flex items-center">
+                  <span className="text-yellow-600 mr-2">⚠️</span>
+                  <span className="text-sm text-yellow-800">
+                    <strong>Using Default Settings:</strong> Database table not configured yet. Changes can be made but will not persist until the database is properly set up.
+                  </span>
+                </div>
+              </div>
+            )}
+            
             <div className="mt-3 bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800">
               <strong>Important:</strong> Changes to these prompts will affect all future report generations. 
               Test thoroughly before saving changes to production.

@@ -14,14 +14,16 @@ export async function GET() {
       .single()
 
     if (error) {
-      // If no settings found, return default settings
-      if (error.code === 'PGRST116') {
-        console.log('No report settings found, returning defaults')
+      // If no settings found or table doesn't exist, return default settings
+      if (error.code === 'PGRST116' || error.code === 'PGRST205') {
+        console.log('No report settings found or table does not exist, returning defaults')
         return NextResponse.json({
           success: true,
-          settings: getDefaultSettings()
+          settings: getDefaultSettings(),
+          usingDefaults: true
         })
       }
+      console.error('Database error fetching settings:', error)
       throw error
     }
 
@@ -61,15 +63,27 @@ export async function POST(request) {
     console.log('Validating settings structure...')
     validateSettings(settings)
 
-    // Check if settings already exist
-    const { data: existingSettings } = await supabase
+    // Check if report_settings table exists and get existing settings
+    const { data: existingSettings, error: checkError } = await supabase
       .from('report_settings')
       .select('id')
       .limit(1)
       .single()
 
+    // If table doesn't exist, return an error asking user to create it first
+    if (checkError && checkError.code === 'PGRST205') {
+      console.log('Report settings table does not exist')
+      return NextResponse.json(
+        { 
+          error: 'Report settings table does not exist. Database migration required.',
+          tableExists: false
+        },
+        { status: 400 }
+      )
+    }
+
     let result
-    if (existingSettings) {
+    if (existingSettings && !checkError) {
       // Update existing settings
       console.log('Updating existing report settings...')
       result = await supabase
@@ -96,6 +110,7 @@ export async function POST(request) {
     }
 
     if (result.error) {
+      console.error('Error saving settings:', result.error)
       throw result.error
     }
 
