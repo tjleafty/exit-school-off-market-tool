@@ -91,7 +91,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.report_settings TO anon;`}
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-blue-800">
-                    <strong>Instructions:</strong> Copy the SQL above and paste it into your Supabase Dashboard's SQL Editor, then click "Run".
+                    <strong>Instructions:</strong> Copy the SQL above and paste it into your Supabase Dashboard&apos;s SQL Editor, then click &quot;Run&quot;.
                   </p>
                 </div>
               </div>
