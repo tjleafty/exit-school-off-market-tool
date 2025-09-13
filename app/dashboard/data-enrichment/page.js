@@ -30,7 +30,7 @@ export default function DataEnrichmentPage() {
     if (user?.id) {
       loadCompanies()
     }
-  }, [user])
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadCompanies = async () => {
     try {
@@ -66,7 +66,7 @@ export default function DataEnrichmentPage() {
         setCompanies(todaysCompanies)
         setHistoricalCompanies(historicalCompanies)
         
-        console.log('Today\'s companies:', todaysCompanies.length)
+        console.log('Today companies:', todaysCompanies.length)
         console.log('Historical companies:', historicalCompanies.length)
       } else {
         console.error('Failed to load companies:', data.error)
@@ -238,7 +238,7 @@ export default function DataEnrichmentPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Today's Searches</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Today&apos;s Searches</dt>
                       <dd className="text-lg font-medium text-gray-900">{companies.length}</dd>
                     </dl>
                   </div>
@@ -302,7 +302,7 @@ export default function DataEnrichmentPage() {
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
               <div>
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Today's Company Searches</h3>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Today&apos;s Company Searches</h3>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">Companies discovered today - manage and enrich your data</p>
               </div>
               <div className="flex space-x-3">
