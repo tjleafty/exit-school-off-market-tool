@@ -133,12 +133,36 @@ export async function POST(request) {
           )
         }
         
-        // If column doesn't exist, provide helpful error message
+        // If column doesn't exist, auto-refresh schema cache and retry
         if (error.message?.includes('could not find') && error.message?.includes('column')) {
+          console.log('Schema cache issue detected, attempting auto-refresh...')
+          
+          try {
+            // Try to refresh schema cache automatically
+            const refreshResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/admin/refresh-schema`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            })
+            
+            if (refreshResponse.ok) {
+              console.log('Schema cache refreshed, please retry the enrichment')
+              return NextResponse.json(
+                { 
+                  error: 'Schema cache was outdated and has been refreshed. Please try enriching again.',
+                  autoRefreshed: true,
+                  details: 'PostgREST schema cache was automatically refreshed'
+                },
+                { status: 202 } // Accepted - retry required
+              )
+            }
+          } catch (refreshError) {
+            console.error('Auto-refresh failed:', refreshError)
+          }
+          
           return NextResponse.json(
             { 
-              error: 'Database schema outdated. Please run the enrichment migration.',
-              details: 'Execute: supabase/migrations/005_update_companies_for_enrichment.sql',
+              error: 'Database schema outdated. Schema refresh attempted but may need manual intervention.',
+              details: 'If this persists, run: NOTIFY pgrst, \'reload schema\'; in Supabase SQL Editor',
               errorDetails: error.message
             },
             { status: 500 }
@@ -181,12 +205,36 @@ export async function POST(request) {
           )
         }
         
-        // If column doesn't exist, provide helpful error message
+        // If column doesn't exist, auto-refresh schema cache and retry
         if (error.message?.includes('could not find') && error.message?.includes('column')) {
+          console.log('Schema cache issue detected, attempting auto-refresh...')
+          
+          try {
+            // Try to refresh schema cache automatically
+            const refreshResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/admin/refresh-schema`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            })
+            
+            if (refreshResponse.ok) {
+              console.log('Schema cache refreshed, please retry the enrichment')
+              return NextResponse.json(
+                { 
+                  error: 'Schema cache was outdated and has been refreshed. Please try enriching again.',
+                  autoRefreshed: true,
+                  details: 'PostgREST schema cache was automatically refreshed'
+                },
+                { status: 202 } // Accepted - retry required
+              )
+            }
+          } catch (refreshError) {
+            console.error('Auto-refresh failed:', refreshError)
+          }
+          
           return NextResponse.json(
             { 
-              error: 'Database schema outdated. Please run the enrichment migration.',
-              details: 'Execute: supabase/migrations/005_update_companies_for_enrichment.sql',
+              error: 'Database schema outdated. Schema refresh attempted but may need manual intervention.',
+              details: 'If this persists, run: NOTIFY pgrst, \'reload schema\'; in Supabase SQL Editor',
               errorDetails: error.message
             },
             { status: 500 }
