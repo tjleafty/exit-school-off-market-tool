@@ -10,6 +10,9 @@ export default function DataEnrichmentPage() {
   const [generatingReport, setGeneratingReport] = useState(null)
   const [user, setUser] = useState(null)
   const [selectedCompany, setSelectedCompany] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [historicalCompanies, setHistoricalCompanies] = useState([])
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState(null)
 
   // Load user from localStorage
   useEffect(() => {
@@ -41,7 +44,30 @@ export default function DataEnrichmentPage() {
       
       if (data.success) {
         console.log('Found companies:', data.companies?.length || 0)
-        setCompanies(data.companies || [])
+        
+        // Separate today's companies from historical ones
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        const todaysCompanies = []
+        const historicalCompanies = []
+        
+        data.companies.forEach(company => {
+          const companyDate = new Date(company.created_at)
+          companyDate.setHours(0, 0, 0, 0)
+          
+          if (companyDate.getTime() === today.getTime()) {
+            todaysCompanies.push(company)
+          } else {
+            historicalCompanies.push(company)
+          }
+        })
+        
+        setCompanies(todaysCompanies)
+        setHistoricalCompanies(historicalCompanies)
+        
+        console.log('Today\'s companies:', todaysCompanies.length)
+        console.log('Historical companies:', historicalCompanies.length)
       } else {
         console.error('Failed to load companies:', data.error)
       }
@@ -144,6 +170,30 @@ export default function DataEnrichmentPage() {
     }
   }
 
+  // Helper function to group historical companies by date
+  const getGroupedHistoricalData = () => {
+    const grouped = {}
+    historicalCompanies.forEach(company => {
+      const date = new Date(company.created_at).toDateString()
+      if (!grouped[date]) {
+        grouped[date] = []
+      }
+      grouped[date].push(company)
+    })
+    return grouped
+  }
+
+  // Helper function to format date for display
+  const formatDisplayDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
@@ -179,16 +229,16 @@ export default function DataEnrichmentPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-6">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-4 mb-6">
             <div className="bg-white overflow-hidden shadow rounded-lg">
               <div className="p-5">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <span className="text-2xl">📊</span>
+                    <span className="text-2xl">📅</span>
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Total Records</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Today's Searches</dt>
                       <dd className="text-lg font-medium text-gray-900">{companies.length}</dd>
                     </dl>
                   </div>
@@ -204,10 +254,26 @@ export default function DataEnrichmentPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Enriched</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Enriched Today</dt>
                       <dd className="text-lg font-medium text-gray-900">
                         {companies.filter(c => c.is_enriched).length}
                       </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <span className="text-2xl">📚</span>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Historical Records</dt>
+                      <dd className="text-lg font-medium text-gray-900">{historicalCompanies.length}</dd>
                     </dl>
                   </div>
                 </div>
@@ -222,7 +288,7 @@ export default function DataEnrichmentPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Pending Today</dt>
                       <dd className="text-lg font-medium text-gray-900">
                         {companies.filter(c => !c.is_enriched).length}
                       </dd>
@@ -236,16 +302,26 @@ export default function DataEnrichmentPage() {
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
               <div>
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Company Data</h3>
-                <p className="mt-1 max-w-2xl text-sm text-gray-500">Manage and enrich your company database</p>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Today's Company Searches</h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">Companies discovered today - manage and enrich your data</p>
               </div>
-              <button 
-                onClick={enrichAll}
-                disabled={loading || companies.filter(c => !c.is_enriched).length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Loading...' : 'Enrich All'}
-              </button>
+              <div className="flex space-x-3">
+                {historicalCompanies.length > 0 && (
+                  <button 
+                    onClick={() => setShowHistory(true)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                  >
+                    📚 View History ({historicalCompanies.length})
+                  </button>
+                )}
+                <button 
+                  onClick={enrichAll}
+                  disabled={loading || companies.filter(c => !c.is_enriched).length === 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Loading...' : 'Enrich All Today'}
+                </button>
+              </div>
             </div>
             
             {loading ? (
@@ -319,15 +395,32 @@ export default function DataEnrichmentPage() {
               </ul>
             ) : (
               <div className="px-6 py-12 text-center">
-                <div className="text-gray-400 text-6xl mb-4">📊</div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Data to Enrich</h3>
-                <p className="text-gray-600">Companies discovered through search will appear here for data enrichment.</p>
-                <Link 
-                  href="/dashboard/company-discovery"
-                  className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Discover Companies
-                </Link>
+                <div className="text-gray-400 text-6xl mb-4">📅</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Companies Found Today</h3>
+                <p className="text-gray-600">
+                  Companies discovered today will appear here for enrichment.
+                  {historicalCompanies.length > 0 && (
+                    <span className="block mt-2">
+                      You have {historicalCompanies.length} companies from previous sessions in your history.
+                    </span>
+                  )}
+                </p>
+                <div className="flex justify-center space-x-3 mt-4">
+                  <Link 
+                    href="/dashboard/company-discovery"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Discover Companies
+                  </Link>
+                  {historicalCompanies.length > 0 && (
+                    <button
+                      onClick={() => setShowHistory(true)}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                      📚 View History
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -432,6 +525,153 @@ export default function DataEnrichmentPage() {
               <div className="flex justify-end mt-6 space-x-3">
                 <button
                   onClick={() => setSelectedCompany(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enrichment History Modal */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* History Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">
+                  📚 Enrichment History ({historicalCompanies.length} companies)
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowHistory(false)
+                    setSelectedHistoryDate(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {selectedHistoryDate ? (
+                // Show companies for selected date
+                <div>
+                  <div className="flex items-center mb-4">
+                    <button
+                      onClick={() => setSelectedHistoryDate(null)}
+                      className="text-blue-600 hover:text-blue-500 mr-4"
+                    >
+                      ← Back to Date List
+                    </button>
+                    <h4 className="text-lg font-semibold text-gray-800">
+                      Companies from {formatDisplayDate(selectedHistoryDate)}
+                    </h4>
+                  </div>
+                  
+                  <div className="max-h-96 overflow-y-auto">
+                    <div className="space-y-3">
+                      {getGroupedHistoricalData()[selectedHistoryDate]?.map((company) => (
+                        <div key={company.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center">
+                                <h5 className="text-md font-medium text-gray-900">{company.name}</h5>
+                                <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                                  company.is_enriched 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {company.is_enriched ? 'Enriched' : 'Pending'}
+                                </span>
+                                {company.enriched_at && (
+                                  <span className="ml-2 text-xs text-gray-500">
+                                    Enriched: {new Date(company.enriched_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                                <div>📧 {company.email || 'No email'}</div>
+                                <div>📞 {company.phone || company.formatted_phone_number || 'No phone'}</div>
+                                <div>🌐 {company.website ? (
+                                  <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                    {new URL(company.website).hostname}
+                                  </a>
+                                ) : 'No website'}</div>
+                                <div>👥 {company.employee_count || 'Unknown'} employees</div>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={() => {
+                                  setSelectedCompany(company)
+                                  setShowHistory(false)
+                                }}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Show grouped dates
+                <div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Select a date to view companies from that enrichment session:
+                  </p>
+                  
+                  <div className="max-h-96 overflow-y-auto">
+                    <div className="space-y-2">
+                      {Object.entries(getGroupedHistoricalData())
+                        .sort(([a], [b]) => new Date(b) - new Date(a)) // Sort by date, newest first
+                        .map(([date, companies]) => (
+                          <div 
+                            key={date}
+                            onClick={() => setSelectedHistoryDate(date)}
+                            className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h4 className="text-md font-medium text-gray-900">
+                                  {formatDisplayDate(date)}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  {companies.length} companies • {companies.filter(c => c.is_enriched).length} enriched
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-500">
+                                  {Math.round((companies.filter(c => c.is_enriched).length / companies.length) * 100)}% complete
+                                </span>
+                                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* History Modal Footer */}
+              <div className="flex justify-end mt-6 space-x-3">
+                <button
+                  onClick={() => {
+                    setShowHistory(false)
+                    setSelectedHistoryDate(null)
+                  }}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                 >
                   Close
