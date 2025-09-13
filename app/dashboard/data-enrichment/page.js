@@ -381,7 +381,16 @@ export default function DataEnrichmentPage() {
                       </div>
                       {selectedCompany.is_enriched && (
                         <>
-                          <div><strong>Email:</strong> {selectedCompany.email || 'Not found'}</div>
+                          <div><strong>Email:</strong> {selectedCompany.email || 'Not found'} 
+                            {selectedCompany.email_confidence && (
+                              <span className={`ml-1 px-1 py-0.5 text-xs rounded ${selectedCompany.email_confidence === 'high' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                {selectedCompany.email_confidence}
+                              </span>
+                            )}
+                          </div>
+                          <div><strong>Owner:</strong> {selectedCompany.owner_name || 'Not identified'}</div>
+                          <div><strong>Employee Count:</strong> {selectedCompany.employee_count || 'Not available'} {selectedCompany.employees_range && `(${selectedCompany.employees_range})`}</div>
+                          <div><strong>Revenue:</strong> {selectedCompany.revenue ? `$${selectedCompany.revenue.toLocaleString()}` : 'Not available'} {selectedCompany.revenue_range && `(${selectedCompany.revenue_range})`}</div>
                           <div><strong>Enriched At:</strong> {selectedCompany.enriched_at ? new Date(selectedCompany.enriched_at).toLocaleString() : 'Not available'}</div>
                           <div><strong>Source:</strong> {selectedCompany.enrichment_source || 'Not specified'}</div>
                         </>
