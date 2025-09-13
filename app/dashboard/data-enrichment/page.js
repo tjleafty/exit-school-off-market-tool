@@ -185,25 +185,9 @@ export default function DataEnrichmentPage() {
       if (response.ok) {
         const result = await response.json()
         
-        // Create a new window for PDF generation
-        const printWindow = window.open('', '_blank', 'width=800,height=600')
+        // Generate PDF using client-side HTML to Canvas conversion
+        await generatePDFFromHTML(result.htmlContent, result.filename, company.name)
         
-        // Write the HTML content to the new window
-        printWindow.document.write(result.htmlContent)
-        printWindow.document.close()
-        
-        // Wait for content to load, then trigger print dialog
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print()
-            // Close the window after printing
-            printWindow.onafterprint = () => {
-              printWindow.close()
-            }
-          }, 500)
-        }
-        
-        alert('PDF report is being generated! A print dialog will open - choose "Save as PDF" to download the file.')
       } else {
         const error = await response.json()
         alert(`Failed to export PDF: ${error.error}`)
@@ -213,6 +197,73 @@ export default function DataEnrichmentPage() {
       alert('Error exporting PDF report. Please try again.')
     } finally {
       setExportingPDF(null)
+    }
+  }
+
+  const generatePDFFromHTML = async (htmlContent, filename, companyName) => {
+    try {
+      // Create a temporary iframe to render the HTML
+      const iframe = document.createElement('iframe')
+      iframe.style.position = 'absolute'
+      iframe.style.left = '-9999px'
+      iframe.style.width = '794px'  // A4 width in pixels at 96 DPI
+      iframe.style.height = '1123px' // A4 height in pixels at 96 DPI
+      document.body.appendChild(iframe)
+
+      // Write HTML content to iframe
+      iframe.contentDocument.open()
+      iframe.contentDocument.write(htmlContent)
+      iframe.contentDocument.close()
+
+      // Wait for content to load
+      await new Promise(resolve => {
+        iframe.onload = resolve
+        setTimeout(resolve, 1000) // Fallback timeout
+      })
+
+      // Use html2canvas to convert to canvas, then jsPDF to create PDF
+      const { default: html2canvas } = await import('html2canvas')
+      const { jsPDF } = await import('jspdf')
+
+      const canvas = await html2canvas(iframe.contentDocument.body, {
+        width: 794,
+        height: 1123,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      })
+
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const imgWidth = 210 // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight)
+      
+      // Download the PDF
+      pdf.save(filename)
+      
+      // Clean up
+      document.body.removeChild(iframe)
+      
+      alert(`PDF report for ${companyName} has been downloaded successfully!`)
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      
+      // Fallback to print dialog if PDF generation fails
+      const printWindow = window.open('', '_blank', 'width=800,height=600')
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      printWindow.print()
+      
+      alert('PDF generation failed. Please use the print dialog to save as PDF.')
     }
   }
 
