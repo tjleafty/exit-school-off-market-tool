@@ -210,75 +210,143 @@ export default function DataEnrichmentPage() {
       
       console.log('Libraries loaded successfully')
 
-      // Create a temporary container div instead of iframe
+      // Create a temporary container div with proper A4 dimensions
       const container = document.createElement('div')
       container.innerHTML = htmlContent
       container.style.position = 'absolute'
       container.style.left = '-9999px'
       container.style.top = '0'
-      container.style.width = '794px'  // A4 width in pixels
+      container.style.width = '210mm'  // A4 width
+      container.style.maxWidth = '794px'  // Fallback pixel width
       container.style.backgroundColor = '#ffffff'
-      container.style.padding = '20px'
+      container.style.padding = '15mm'
+      container.style.boxSizing = 'border-box'
       container.style.fontFamily = 'Arial, sans-serif'
+      container.style.fontSize = '12px'
+      container.style.lineHeight = '1.4'
+      
+      // Add proper page break styling
+      const style = document.createElement('style')
+      style.textContent = `
+        .pdf-container .section {
+          page-break-inside: avoid;
+          margin-bottom: 15px;
+        }
+        .pdf-container .header {
+          page-break-after: avoid;
+        }
+        .pdf-container .info-grid {
+          page-break-inside: avoid;
+        }
+        .pdf-container {
+          width: 180mm !important;
+          max-width: none !important;
+        }
+      `
+      document.head.appendChild(style)
+      container.className = 'pdf-container'
       
       document.body.appendChild(container)
       
       console.log('Container created and added to DOM')
       
-      // Wait a moment for content to render
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Wait longer for content to fully render and fonts to load
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
       console.log('Generating canvas from HTML...')
       
-      // Generate canvas from the HTML content
+      // Generate canvas with better settings for PDF
       const canvas = await html2canvas(container, {
-        scale: 2,
+        scale: 1.5, // Reduced scale for better performance
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: 794,
-        logging: false
+        width: container.offsetWidth,
+        height: container.offsetHeight,
+        logging: false,
+        removeContainer: false,
+        foreignObjectRendering: true
       })
       
       console.log('Canvas generated successfully, creating PDF...')
 
-      // Create PDF
+      // Create PDF with proper margins
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        compress: true
       })
 
-      const imgWidth = 210 // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      
-      // Handle multiple pages if content is too long
-      let yPosition = 0
+      const pageWidth = 210 // A4 width in mm
       const pageHeight = 297 // A4 height in mm
+      const margin = 15 // 15mm margins
+      const contentWidth = pageWidth - (margin * 2)
+      const contentHeight = pageHeight - (margin * 2)
       
-      if (imgHeight > pageHeight) {
-        // Content spans multiple pages
-        const pagesCount = Math.ceil(imgHeight / pageHeight)
-        const canvasHeight = canvas.height
-        const pageCanvasHeight = canvasHeight / pagesCount
+      // Calculate proper image dimensions maintaining aspect ratio
+      const canvasRatio = canvas.height / canvas.width
+      const imgWidth = contentWidth
+      const imgHeight = contentWidth * canvasRatio
+      
+      console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}`)
+      console.log(`PDF image dimensions: ${imgWidth}mm x ${imgHeight}mm`)
+      
+      if (imgHeight <= contentHeight) {
+        // Single page - fits on one page
+        pdf.addImage(
+          canvas.toDataURL('image/png', 0.95), 
+          'PNG', 
+          margin, 
+          margin, 
+          imgWidth, 
+          imgHeight
+        )
+      } else {
+        // Multiple pages - split content properly
+        const pagesNeeded = Math.ceil(imgHeight / contentHeight)
+        const pixelsPerPage = canvas.height / pagesNeeded
         
-        for (let i = 0; i < pagesCount; i++) {
-          if (i > 0) pdf.addPage()
+        console.log(`Content requires ${pagesNeeded} pages`)
+        
+        for (let pageNum = 0; pageNum < pagesNeeded; pageNum++) {
+          if (pageNum > 0) {
+            pdf.addPage()
+          }
           
-          const sourceY = i * pageCanvasHeight
+          // Create canvas for this page
           const pageCanvas = document.createElement('canvas')
           pageCanvas.width = canvas.width
-          pageCanvas.height = pageCanvasHeight
+          pageCanvas.height = Math.min(pixelsPerPage, canvas.height - (pageNum * pixelsPerPage))
           
-          const pageCtx = pageCanvas.getContext('2d')
-          pageCtx.drawImage(canvas, 0, sourceY, canvas.width, pageCanvasHeight, 0, 0, canvas.width, pageCanvasHeight)
+          const ctx = pageCanvas.getContext('2d')
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
           
-          pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, pageHeight)
+          // Draw the portion of the original canvas for this page
+          ctx.drawImage(
+            canvas,
+            0, pageNum * pixelsPerPage, // source x, y
+            canvas.width, pageCanvas.height, // source width, height
+            0, 0, // destination x, y
+            pageCanvas.width, pageCanvas.height // destination width, height
+          )
+          
+          // Add to PDF with proper scaling
+          const pageImgHeight = (pageCanvas.height / canvas.height) * imgHeight
+          pdf.addImage(
+            pageCanvas.toDataURL('image/png', 0.95), 
+            'PNG', 
+            margin, 
+            margin, 
+            imgWidth, 
+            pageImgHeight
+          )
         }
-      } else {
-        // Single page
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight)
       }
+      
+      // Clean up the added style
+      document.head.removeChild(style)
       
       console.log('PDF created, initiating download...')
       
