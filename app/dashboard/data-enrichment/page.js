@@ -13,6 +13,8 @@ export default function DataEnrichmentPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [historicalCompanies, setHistoricalCompanies] = useState([])
   const [selectedHistoryDate, setSelectedHistoryDate] = useState(null)
+  const [exportingPDF, setExportingPDF] = useState(null)
+  const [exportingCSV, setExportingCSV] = useState(false)
 
   // Load user from localStorage
   useEffect(() => {
@@ -170,6 +172,96 @@ export default function DataEnrichmentPage() {
     }
   }
 
+  const exportToPDF = async (company) => {
+    try {
+      setExportingPDF(company.id)
+      
+      const response = await fetch('/api/companies/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: company.id })
+      })
+
+      if (response.ok) {
+        // Create a blob and download the HTML file (which can be printed as PDF)
+        const htmlContent = await response.text()
+        const blob = new Blob([htmlContent], { type: 'text/html' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `company-report-${company.name.replace(/[^a-zA-Z0-9]/g, '-')}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        
+        // Open the HTML in a new window for printing to PDF
+        const printWindow = window.open('', '_blank')
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        
+        alert('Report generated! You can print it as PDF from the opened window (Ctrl+P → Save as PDF)')
+      } else {
+        const error = await response.json()
+        alert(`Failed to export PDF: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Error exporting PDF report. Please try again.')
+    } finally {
+      setExportingPDF(null)
+    }
+  }
+
+  const exportToCSV = async (date = null) => {
+    try {
+      setExportingCSV(true)
+      
+      // Use today's date if no date specified
+      const exportDate = date || new Date().toISOString()
+      
+      const response = await fetch('/api/companies/export/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          date: exportDate,
+          userId: user?.id 
+        })
+      })
+
+      if (response.ok) {
+        // Create a blob and download the CSV file
+        const csvContent = await response.text()
+        const blob = new Blob([csvContent], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        
+        // Get filename from response headers or create default
+        const contentDisposition = response.headers.get('content-disposition')
+        const filename = contentDisposition 
+          ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+          : `companies-export-${new Date(exportDate).toISOString().split('T')[0]}.csv`
+        
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        
+        alert('CSV export completed successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to export CSV: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error)
+      alert('Error exporting CSV. Please try again.')
+    } finally {
+      setExportingCSV(false)
+    }
+  }
+
   // Helper function to group historical companies by date
   const getGroupedHistoricalData = () => {
     const grouped = {}
@@ -306,6 +398,15 @@ export default function DataEnrichmentPage() {
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">Companies discovered today - manage and enrich your data</p>
               </div>
               <div className="flex space-x-3">
+                {companies.length > 0 && (
+                  <button 
+                    onClick={() => exportToCSV()}
+                    disabled={exportingCSV}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {exportingCSV ? 'Exporting...' : '📊 Export CSV'}
+                  </button>
+                )}
                 {historicalCompanies.length > 0 && (
                   <button 
                     onClick={() => setShowHistory(true)}
@@ -381,6 +482,13 @@ export default function DataEnrichmentPage() {
                             className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
                           >
                             View Details
+                          </button>
+                          <button 
+                            onClick={() => exportToPDF(company)}
+                            disabled={exportingPDF === company.id}
+                            className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {exportingPDF === company.id ? 'Exporting...' : '📄 PDF Report'}
                           </button>
                           {company.has_bi_report && (
                             <span className="px-3 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">
@@ -562,16 +670,25 @@ export default function DataEnrichmentPage() {
               {selectedHistoryDate ? (
                 // Show companies for selected date
                 <div>
-                  <div className="flex items-center mb-4">
-                    <button
-                      onClick={() => setSelectedHistoryDate(null)}
-                      className="text-blue-600 hover:text-blue-500 mr-4"
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => setSelectedHistoryDate(null)}
+                        className="text-blue-600 hover:text-blue-500 mr-4"
+                      >
+                        ← Back to Date List
+                      </button>
+                      <h4 className="text-lg font-semibold text-gray-800">
+                        Companies from {formatDisplayDate(selectedHistoryDate)}
+                      </h4>
+                    </div>
+                    <button 
+                      onClick={() => exportToCSV(selectedHistoryDate)}
+                      disabled={exportingCSV}
+                      className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50"
                     >
-                      ← Back to Date List
+                      {exportingCSV ? 'Exporting...' : '📊 Export CSV'}
                     </button>
-                    <h4 className="text-lg font-semibold text-gray-800">
-                      Companies from {formatDisplayDate(selectedHistoryDate)}
-                    </h4>
                   </div>
                   
                   <div className="max-h-96 overflow-y-auto">
@@ -615,6 +732,13 @@ export default function DataEnrichmentPage() {
                                 className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
                               >
                                 View Details
+                              </button>
+                              <button 
+                                onClick={() => exportToPDF(company)}
+                                disabled={exportingPDF === company.id}
+                                className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50"
+                              >
+                                {exportingPDF === company.id ? 'Exporting...' : '📄 PDF'}
                               </button>
                             </div>
                           </div>
