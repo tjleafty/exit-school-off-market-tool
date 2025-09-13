@@ -77,7 +77,7 @@ function generateCSV(companies, exportDate) {
   const reportInfo = [
     ['Exit School Off-Market Tool - Company Intelligence Report'],
     [''],
-    ['Report Generated:', new Date().toLocaleString()],
+    ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
     ['Data Date:', exportDate.toLocaleDateString()],
     ['Total Companies:', companies.length.toString()],
     ['Enriched Companies:', companies.filter(c => c.is_enriched).length.toString()],
@@ -143,8 +143,8 @@ function generateCSV(companies, exportDate) {
     // Column 9: Company Size Range
     rowData.push(escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'))
     
-    // Column 10: Annual Revenue
-    rowData.push(escapeCSV(company.revenue ? `$${company.revenue.toLocaleString()}` : 'Not Available'))
+    // Column 10: Annual Revenue (no commas for CSV compatibility)
+    rowData.push(escapeCSV(company.revenue ? `$${company.revenue}` : 'Not Available'))
     
     // Column 11: Revenue Range
     rowData.push(escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'))
@@ -283,11 +283,12 @@ function calculateDataQualityScore(company) {
 
 function escapeCSV(value) {
   // Convert to string and handle null/undefined
-  if (value === null || value === undefined) return ''
+  if (value === null || value === undefined) return '""'
   
   const stringValue = String(value)
   
   // Always wrap in quotes to prevent column shifting issues
+  // Escape any existing quotes by doubling them
   return `"${stringValue.replace(/"/g, '""')}"`
 }
 
