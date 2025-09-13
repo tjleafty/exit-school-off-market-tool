@@ -254,21 +254,6 @@ function filterValidColumns(data) {
     'place_id', 'name', 'phone', 'website', 'rating', 'user_ratings_total'
   ]
   
-  // For schema cache issues, return only the most basic columns that definitely exist
-  if (process.env.NODE_ENV === 'production') {
-    const safeColumns = {}
-    
-    // Only include basic columns that existed in the original schema
-    const basicFields = ['place_id', 'name', 'phone', 'website', 'rating']
-    basicFields.forEach(col => {
-      if (data.hasOwnProperty(col) && data[col] !== undefined) {
-        safeColumns[col] = data[col]
-      }
-    })
-    
-    return safeColumns
-  }
-  
   // Define enrichment columns that might not exist in older schemas
   const enrichmentColumns = [
     'formatted_address', 'location', 'city', 'state', 'industry',
