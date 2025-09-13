@@ -94,6 +94,9 @@ function generateCSV(companies, exportDate) {
     'Business Address',
     'Industry Category',
     'Owner/Decision Maker',
+    'Owner Email',
+    'Owner Phone',
+    'Owner LinkedIn',
     'Employee Count',
     'Company Size Range',
     'Annual Revenue',
@@ -137,49 +140,58 @@ function generateCSV(companies, exportDate) {
     // Column 7: Owner/Decision Maker
     rowData.push(escapeCSV(company.owner_name || 'Not Identified'))
     
-    // Column 8: Employee Count
+    // Column 8: Owner Email
+    rowData.push(escapeCSV(company.owner_email || company.email || 'Not Available'))
+    
+    // Column 9: Owner Phone
+    rowData.push(escapeCSV(formatPhoneNumber(company.owner_phone || '') || 'Not Available'))
+    
+    // Column 10: Owner LinkedIn
+    rowData.push(escapeCSV(company.owner_linkedin || company.linkedin_url || 'Not Available'))
+    
+    // Column 11: Employee Count
     rowData.push(escapeCSV(company.employee_count ? company.employee_count.toString() : 'Unknown'))
     
-    // Column 9: Company Size Range
+    // Column 12: Company Size Range
     rowData.push(escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'))
     
-    // Column 10: Annual Revenue (no commas for CSV compatibility)
+    // Column 13: Annual Revenue (no commas for CSV compatibility)
     rowData.push(escapeCSV(company.revenue ? `$${company.revenue}` : 'Not Available'))
     
-    // Column 11: Revenue Range
+    // Column 14: Revenue Range
     rowData.push(escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'))
     
-    // Column 12: Google Rating
+    // Column 15: Google Rating
     rowData.push(escapeCSV(company.rating ? `${company.rating}/5.0` : 'No Rating'))
     
-    // Column 13: Total Reviews
+    // Column 16: Total Reviews
     rowData.push(escapeCSV((company.user_ratings_total || company.total_reviews || '0').toString()))
     
-    // Column 14: Business Status
+    // Column 17: Business Status
     rowData.push(escapeCSV(company.business_status || 'Unknown'))
     
-    // Column 15: Email Confidence Level
+    // Column 18: Email Confidence Level
     rowData.push(escapeCSV(company.email_confidence || 'Not Assessed'))
     
-    // Column 16: Data Enrichment Status
+    // Column 19: Data Enrichment Status
     rowData.push(escapeCSV(company.is_enriched ? 'Enriched' : 'Pending Enrichment'))
     
-    // Column 17: Enrichment Source
+    // Column 20: Enrichment Source
     rowData.push(escapeCSV(company.enrichment_source || 'Initial Discovery'))
     
-    // Column 18: Discovery Date
+    // Column 21: Discovery Date
     rowData.push(escapeCSV(formatDate(company.created_at)))
     
-    // Column 19: Last Enriched
+    // Column 22: Last Enriched
     rowData.push(escapeCSV(company.enriched_at ? formatDate(company.enriched_at) : 'Not Enriched'))
     
-    // Column 20: Company ID
+    // Column 23: Company ID
     rowData.push(escapeCSV(company.id || ''))
     
-    // Column 21: Place ID
+    // Column 24: Place ID
     rowData.push(escapeCSV(company.place_id || ''))
     
-    // Column 22: Data Quality Score
+    // Column 25: Data Quality Score
     rowData.push(escapeCSV(calculateDataQualityScore(company)))
     
     return rowData
@@ -256,11 +268,14 @@ function calculateDataQualityScore(company) {
   // Scoring criteria
   const criteria = [
     { field: 'name', weight: 10 },
-    { field: 'email', weight: 15 },
-    { field: 'phone', weight: 10 },
+    { field: 'email', weight: 12 },
+    { field: 'phone', weight: 8 },
     { field: 'website', weight: 10 },
     { field: 'formatted_address', weight: 8 },
-    { field: 'owner_name', weight: 12 },
+    { field: 'owner_name', weight: 10 },
+    { field: 'owner_email', weight: 12 },
+    { field: 'owner_phone', weight: 8 },
+    { field: 'owner_linkedin', weight: 6 },
     { field: 'employee_count', weight: 8 },
     { field: 'revenue', weight: 8 },
     { field: 'industry', weight: 5 },
