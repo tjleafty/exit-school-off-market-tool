@@ -9,6 +9,7 @@ export default function DataEnrichmentPage() {
   const [enriching, setEnriching] = useState(null)
   const [generatingReport, setGeneratingReport] = useState(null)
   const [user, setUser] = useState(null)
+  const [selectedCompany, setSelectedCompany] = useState(null)
 
   // Load user from localStorage
   useEffect(() => {
@@ -299,7 +300,10 @@ export default function DataEnrichmentPage() {
                           </button>
                         </div>
                         <div className="flex space-x-2">
-                          <button className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">
+                          <button 
+                            onClick={() => setSelectedCompany(company)}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
+                          >
                             View Details
                           </button>
                           {company.has_bi_report && (
@@ -329,6 +333,105 @@ export default function DataEnrichmentPage() {
           </div>
         </div>
       </main>
+
+      {/* Company Details Modal */}
+      {selectedCompany && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">{selectedCompany.name}</h3>
+                <button
+                  onClick={() => setSelectedCompany(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Company Info */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-700">Basic Information</h4>
+                    <div className="mt-2 space-y-2 text-sm">
+                      <div><strong>Address:</strong> {selectedCompany.formatted_address || selectedCompany.location || 'Not available'}</div>
+                      <div><strong>Phone:</strong> {selectedCompany.phone || selectedCompany.formatted_phone_number || 'Not available'}</div>
+                      <div><strong>Website:</strong> {selectedCompany.website ? (
+                        <a href={selectedCompany.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {selectedCompany.website}
+                        </a>
+                      ) : 'Not available'}</div>
+                      <div><strong>Industry:</strong> {selectedCompany.industry || 'Not specified'}</div>
+                      <div><strong>Rating:</strong> {selectedCompany.rating ? `${selectedCompany.rating}/5.0 (${selectedCompany.user_ratings_total || 0} reviews)` : 'No rating'}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-700">Enrichment Data</h4>
+                    <div className="mt-2 space-y-2 text-sm">
+                      <div><strong>Status:</strong> 
+                        <span className={`ml-1 px-2 py-1 text-xs rounded ${selectedCompany.is_enriched ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {selectedCompany.is_enriched ? 'Enriched' : 'Pending'}
+                        </span>
+                      </div>
+                      {selectedCompany.is_enriched && (
+                        <>
+                          <div><strong>Email:</strong> {selectedCompany.email || 'Not found'}</div>
+                          <div><strong>Enriched At:</strong> {selectedCompany.enriched_at ? new Date(selectedCompany.enriched_at).toLocaleString() : 'Not available'}</div>
+                          <div><strong>Source:</strong> {selectedCompany.enrichment_source || 'Not specified'}</div>
+                        </>
+                      )}
+                      <div><strong>Created:</strong> {new Date(selectedCompany.created_at).toLocaleString()}</div>
+                      <div><strong>Updated:</strong> {new Date(selectedCompany.updated_at).toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Google Places Data */}
+                {selectedCompany.place_id && (
+                  <div>
+                    <h4 className="font-semibold text-gray-700">Google Places Data</h4>
+                    <div className="mt-2 space-y-2 text-sm">
+                      <div><strong>Place ID:</strong> {selectedCompany.place_id}</div>
+                      {selectedCompany.types && (
+                        <div><strong>Categories:</strong> {selectedCompany.types}</div>
+                      )}
+                      {selectedCompany.business_status && (
+                        <div><strong>Business Status:</strong> {selectedCompany.business_status}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Raw Data (for debugging) */}
+                <div>
+                  <h4 className="font-semibold text-gray-700">Technical Details</h4>
+                  <div className="mt-2 text-xs">
+                    <div><strong>Company ID:</strong> {selectedCompany.id}</div>
+                    <div><strong>Search ID:</strong> {selectedCompany.search_id || 'Not linked'}</div>
+                    <div><strong>User ID:</strong> {selectedCompany.user_id || 'Not specified'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-end mt-6 space-x-3">
+                <button
+                  onClick={() => setSelectedCompany(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
