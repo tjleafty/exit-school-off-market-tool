@@ -111,31 +111,79 @@ function generateCSV(companies, exportDate) {
     'Data Quality Score'
   ]
 
-  // Convert companies to professional CSV rows
-  const dataRows = companies.map(company => [
-    escapeCSV(company.name || 'N/A'),
-    escapeCSV(company.email || 'Not Available'),
-    escapeCSV(formatPhoneNumber(company.phone || company.formatted_phone_number || '')),
-    escapeCSV(company.website || 'Not Available'),
-    escapeCSV(company.formatted_address || company.location || 'Not Available'),
-    escapeCSV(company.industry || determineIndustryFromTypes(company.types) || 'Not Specified'),
-    escapeCSV(company.owner_name || 'Not Identified'),
-    company.employee_count || 'Unknown',
-    escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'),
-    company.revenue ? `$${company.revenue.toLocaleString()}` : 'Not Available',
-    escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'),
-    company.rating ? `${company.rating}/5.0` : 'No Rating',
-    company.user_ratings_total || company.total_reviews || '0',
-    escapeCSV(company.business_status || 'Unknown'),
-    escapeCSV(company.email_confidence || 'Not Assessed'),
-    company.is_enriched ? 'Enriched' : 'Pending Enrichment',
-    escapeCSV(company.enrichment_source || 'Initial Discovery'),
-    formatDate(company.created_at),
-    company.enriched_at ? formatDate(company.enriched_at) : 'Not Enriched',
-    company.id,
-    escapeCSV(company.place_id || ''),
-    calculateDataQualityScore(company)
-  ])
+  // Convert companies to professional CSV rows - ensure proper column mapping
+  const dataRows = companies.map(company => {
+    // Build row data carefully to match headers exactly
+    const rowData = []
+    
+    // Column 1: Company Name
+    rowData.push(escapeCSV(company.name || 'N/A'))
+    
+    // Column 2: Primary Contact Email  
+    rowData.push(escapeCSV(company.email || 'Not Available'))
+    
+    // Column 3: Phone Number
+    rowData.push(escapeCSV(formatPhoneNumber(company.phone || company.formatted_phone_number || '')))
+    
+    // Column 4: Website URL
+    rowData.push(escapeCSV(company.website || 'Not Available'))
+    
+    // Column 5: Business Address
+    rowData.push(escapeCSV(company.formatted_address || company.location || 'Not Available'))
+    
+    // Column 6: Industry Category
+    rowData.push(escapeCSV(company.industry || determineIndustryFromTypes(company.types) || 'Not Specified'))
+    
+    // Column 7: Owner/Decision Maker
+    rowData.push(escapeCSV(company.owner_name || 'Not Identified'))
+    
+    // Column 8: Employee Count
+    rowData.push(escapeCSV(company.employee_count ? company.employee_count.toString() : 'Unknown'))
+    
+    // Column 9: Company Size Range
+    rowData.push(escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'))
+    
+    // Column 10: Annual Revenue
+    rowData.push(escapeCSV(company.revenue ? `$${company.revenue.toLocaleString()}` : 'Not Available'))
+    
+    // Column 11: Revenue Range
+    rowData.push(escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'))
+    
+    // Column 12: Google Rating
+    rowData.push(escapeCSV(company.rating ? `${company.rating}/5.0` : 'No Rating'))
+    
+    // Column 13: Total Reviews
+    rowData.push(escapeCSV((company.user_ratings_total || company.total_reviews || '0').toString()))
+    
+    // Column 14: Business Status
+    rowData.push(escapeCSV(company.business_status || 'Unknown'))
+    
+    // Column 15: Email Confidence Level
+    rowData.push(escapeCSV(company.email_confidence || 'Not Assessed'))
+    
+    // Column 16: Data Enrichment Status
+    rowData.push(escapeCSV(company.is_enriched ? 'Enriched' : 'Pending Enrichment'))
+    
+    // Column 17: Enrichment Source
+    rowData.push(escapeCSV(company.enrichment_source || 'Initial Discovery'))
+    
+    // Column 18: Discovery Date
+    rowData.push(escapeCSV(formatDate(company.created_at)))
+    
+    // Column 19: Last Enriched
+    rowData.push(escapeCSV(company.enriched_at ? formatDate(company.enriched_at) : 'Not Enriched'))
+    
+    // Column 20: Company ID
+    rowData.push(escapeCSV(company.id || ''))
+    
+    // Column 21: Place ID
+    rowData.push(escapeCSV(company.place_id || ''))
+    
+    // Column 22: Data Quality Score
+    rowData.push(escapeCSV(calculateDataQualityScore(company)))
+    
+    return rowData
+  })
 
   // Combine all sections
   const allRows = [...reportInfo, headers, ...dataRows]
@@ -234,19 +282,23 @@ function calculateDataQualityScore(company) {
 }
 
 function escapeCSV(value) {
-  if (typeof value !== 'string') return ''
+  // Convert to string and handle null/undefined
+  if (value === null || value === undefined) return ''
   
-  // Escape quotes and wrap in quotes if necessary
-  if (value.includes(',') || value.includes('"') || value.includes('\\n')) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
+  const stringValue = String(value)
+  
+  // Always wrap in quotes to prevent column shifting issues
+  return `"${stringValue.replace(/"/g, '""')}"`
 }
 
 function formatDate(dateString) {
-  if (!dateString) return ''
+  if (!dateString) return 'Not Available'
   try {
-    return new Date(dateString).toLocaleString()
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US') + ' ' + date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
   } catch {
     return dateString
   }
