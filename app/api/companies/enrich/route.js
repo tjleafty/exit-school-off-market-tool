@@ -74,11 +74,13 @@ export async function POST(request) {
 
     // Step 5: Save to database
     if (companyId) {
-      // Update existing company
+      // Update existing company - filter out fields that might not exist in schema
+      const safeUpdateData = filterValidColumns(enrichedData)
+      
       const { data, error } = await supabase
         .from('companies')
         .update({
-          ...enrichedData,
+          ...safeUpdateData,
           updated_at: new Date().toISOString()
         })
         .eq('id', companyId)
@@ -93,7 +95,19 @@ export async function POST(request) {
           return NextResponse.json(
             { 
               error: 'Companies table not found. Please run the database migration.',
-              details: 'Execute the SQL in supabase/companies-table.sql file in your Supabase dashboard'
+              details: 'Execute the migration: supabase/migrations/005_update_companies_for_enrichment.sql'
+            },
+            { status: 500 }
+          )
+        }
+        
+        // If column doesn't exist, provide helpful error message
+        if (error.message?.includes('could not find') && error.message?.includes('column')) {
+          return NextResponse.json(
+            { 
+              error: 'Database schema outdated. Please run the enrichment migration.',
+              details: 'Execute: supabase/migrations/005_update_companies_for_enrichment.sql',
+              errorDetails: error.message
             },
             { status: 500 }
           )
@@ -108,11 +122,13 @@ export async function POST(request) {
         data
       })
     } else {
-      // Insert new company
+      // Insert new company - filter out fields that might not exist in schema
+      const safeInsertData = filterValidColumns(enrichedData)
+      
       const { data, error } = await supabase
         .from('companies')
         .insert([{
-          ...enrichedData,
+          ...safeInsertData,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -127,7 +143,19 @@ export async function POST(request) {
           return NextResponse.json(
             { 
               error: 'Companies table not found. Please run the database migration.',
-              details: 'Execute the SQL in supabase/companies-table.sql file in your Supabase dashboard'
+              details: 'Execute the migration: supabase/migrations/005_update_companies_for_enrichment.sql'
+            },
+            { status: 500 }
+          )
+        }
+        
+        // If column doesn't exist, provide helpful error message
+        if (error.message?.includes('could not find') && error.message?.includes('column')) {
+          return NextResponse.json(
+            { 
+              error: 'Database schema outdated. Please run the enrichment migration.',
+              details: 'Execute: supabase/migrations/005_update_companies_for_enrichment.sql',
+              errorDetails: error.message
             },
             { status: 500 }
           )
@@ -185,4 +213,41 @@ export async function GET(request) {
       { status: 500 }
     )
   }
+}
+
+// Helper function to filter out fields that might not exist in the database schema
+function filterValidColumns(data) {
+  // Define core columns that should always exist (from initial migration)
+  const coreColumns = [
+    'place_id', 'name', 'phone', 'website', 'rating', 'user_ratings_total'
+  ]
+  
+  // Define enrichment columns that might not exist in older schemas
+  const enrichmentColumns = [
+    'formatted_address', 'location', 'city', 'state', 'industry',
+    'email', 'email_confidence', 'formatted_phone_number', 'international_phone_number',
+    'types', 'geometry', 'business_status', 'editorial_summary', 'total_reviews',
+    'opening_hours', 'industry_categories', 'is_enriched', 'enriched_at',
+    'enrichment_source', 'employees_range', 'revenue_range', 'company_stage',
+    'founded_year', 'linkedin_url', 'description'
+  ]
+  
+  // Start with core columns and add enrichment columns if they exist in the data
+  const filtered = {}
+  
+  // Always include core columns if present
+  coreColumns.forEach(col => {
+    if (data.hasOwnProperty(col) && data[col] !== undefined) {
+      filtered[col] = data[col]
+    }
+  })
+  
+  // Include enrichment columns if present (migration handles missing columns)
+  enrichmentColumns.forEach(col => {
+    if (data.hasOwnProperty(col) && data[col] !== undefined) {
+      filtered[col] = data[col]
+    }
+  })
+  
+  return filtered
 }

@@ -55,16 +55,21 @@ export default function DataEnrichmentPage() {
     try {
       setEnriching(company.id)
       
+      const payload = {
+        companyId: company.id,
+        companyData: company
+      }
+      console.log('Enrichment request payload:', payload)
+      
       const response = await fetch('/api/companies/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: company.id,
-          companyData: company
-        })
+        body: JSON.stringify(payload)
       })
 
+      console.log('Enrichment response status:', response.status)
       const result = await response.json()
+      console.log('Enrichment response body:', result)
       
       if (result.success) {
         // Update the company in the list
@@ -74,6 +79,7 @@ export default function DataEnrichmentPage() {
         console.log('Company enriched successfully:', result.data)
       } else {
         console.error('Enrichment failed:', result.error)
+        console.error('Full error response:', result)
         alert('Failed to enrich company data. Please try again.')
       }
     } catch (error) {
