@@ -202,37 +202,45 @@ export default function DataEnrichmentPage() {
 
   const generatePDFFromHTML = async (htmlContent, filename, companyName) => {
     try {
-      // Create a temporary iframe to render the HTML
-      const iframe = document.createElement('iframe')
-      iframe.style.position = 'absolute'
-      iframe.style.left = '-9999px'
-      iframe.style.width = '794px'  // A4 width in pixels at 96 DPI
-      iframe.style.height = '1123px' // A4 height in pixels at 96 DPI
-      document.body.appendChild(iframe)
-
-      // Write HTML content to iframe
-      iframe.contentDocument.open()
-      iframe.contentDocument.write(htmlContent)
-      iframe.contentDocument.close()
-
-      // Wait for content to load
-      await new Promise(resolve => {
-        iframe.onload = resolve
-        setTimeout(resolve, 1000) // Fallback timeout
-      })
-
-      // Use html2canvas to convert to canvas, then jsPDF to create PDF
-      const { default: html2canvas } = await import('html2canvas')
+      console.log('Starting PDF generation for:', companyName)
+      
+      // Import libraries at the top level to avoid dynamic import issues
+      const html2canvas = (await import('html2canvas')).default
       const { jsPDF } = await import('jspdf')
+      
+      console.log('Libraries loaded successfully')
 
-      const canvas = await html2canvas(iframe.contentDocument.body, {
-        width: 794,
-        height: 1123,
+      // Create a temporary container div instead of iframe
+      const container = document.createElement('div')
+      container.innerHTML = htmlContent
+      container.style.position = 'absolute'
+      container.style.left = '-9999px'
+      container.style.top = '0'
+      container.style.width = '794px'  // A4 width in pixels
+      container.style.backgroundColor = '#ffffff'
+      container.style.padding = '20px'
+      container.style.fontFamily = 'Arial, sans-serif'
+      
+      document.body.appendChild(container)
+      
+      console.log('Container created and added to DOM')
+      
+      // Wait a moment for content to render
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      console.log('Generating canvas from HTML...')
+      
+      // Generate canvas from the HTML content
+      const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        width: 794,
+        logging: false
       })
+      
+      console.log('Canvas generated successfully, creating PDF...')
 
       // Create PDF
       const pdf = new jsPDF({
@@ -244,26 +252,62 @@ export default function DataEnrichmentPage() {
       const imgWidth = 210 // A4 width in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width
       
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight)
+      // Handle multiple pages if content is too long
+      let yPosition = 0
+      const pageHeight = 297 // A4 height in mm
+      
+      if (imgHeight > pageHeight) {
+        // Content spans multiple pages
+        const pagesCount = Math.ceil(imgHeight / pageHeight)
+        const canvasHeight = canvas.height
+        const pageCanvasHeight = canvasHeight / pagesCount
+        
+        for (let i = 0; i < pagesCount; i++) {
+          if (i > 0) pdf.addPage()
+          
+          const sourceY = i * pageCanvasHeight
+          const pageCanvas = document.createElement('canvas')
+          pageCanvas.width = canvas.width
+          pageCanvas.height = pageCanvasHeight
+          
+          const pageCtx = pageCanvas.getContext('2d')
+          pageCtx.drawImage(canvas, 0, sourceY, canvas.width, pageCanvasHeight, 0, 0, canvas.width, pageCanvasHeight)
+          
+          pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, pageHeight)
+        }
+      } else {
+        // Single page
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight)
+      }
+      
+      console.log('PDF created, initiating download...')
       
       // Download the PDF
       pdf.save(filename)
       
       // Clean up
-      document.body.removeChild(iframe)
+      document.body.removeChild(container)
       
-      alert(`PDF report for ${companyName} has been downloaded successfully!`)
+      console.log('PDF generation completed successfully')
+      alert(`✅ PDF report for ${companyName} has been downloaded successfully!`)
       
     } catch (error) {
-      console.error('Error generating PDF:', error)
+      console.error('❌ Error generating PDF:', error)
+      
+      // Clean up any container that might have been created
+      const containers = document.querySelectorAll('div[style*="-9999px"]')
+      containers.forEach(container => {
+        if (container.parentNode) container.parentNode.removeChild(container)
+      })
       
       // Fallback to print dialog if PDF generation fails
+      console.log('Falling back to print dialog...')
       const printWindow = window.open('', '_blank', 'width=800,height=600')
       printWindow.document.write(htmlContent)
       printWindow.document.close()
       printWindow.print()
       
-      alert('PDF generation failed. Please use the print dialog to save as PDF.')
+      alert('❌ PDF generation failed. Please use the print dialog to save as PDF.')
     }
   }
 
