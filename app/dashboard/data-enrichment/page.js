@@ -183,24 +183,27 @@ export default function DataEnrichmentPage() {
       })
 
       if (response.ok) {
-        // Create a blob and download the HTML file (which can be printed as PDF)
-        const htmlContent = await response.text()
-        const blob = new Blob([htmlContent], { type: 'text/html' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `company-report-${company.name.replace(/[^a-zA-Z0-9]/g, '-')}.html`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        const result = await response.json()
         
-        // Open the HTML in a new window for printing to PDF
-        const printWindow = window.open('', '_blank')
-        printWindow.document.write(htmlContent)
+        // Create a new window for PDF generation
+        const printWindow = window.open('', '_blank', 'width=800,height=600')
+        
+        // Write the HTML content to the new window
+        printWindow.document.write(result.htmlContent)
         printWindow.document.close()
         
-        alert('Report generated! You can print it as PDF from the opened window (Ctrl+P → Save as PDF)')
+        // Wait for content to load, then trigger print dialog
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+            // Close the window after printing
+            printWindow.onafterprint = () => {
+              printWindow.close()
+            }
+          }, 500)
+        }
+        
+        alert('PDF report is being generated! A print dialog will open - choose "Save as PDF" to download the file.')
       } else {
         const error = await response.json()
         alert(`Failed to export PDF: ${error.error}`)

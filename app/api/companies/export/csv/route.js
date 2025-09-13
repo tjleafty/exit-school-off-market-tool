@@ -73,73 +73,164 @@ export async function POST(request) {
 }
 
 function generateCSV(companies, exportDate) {
-  // Define CSV headers
-  const headers = [
-    'Company Name',
-    'Email',
-    'Phone',
-    'Website',
-    'Address',
-    'Industry',
-    'Rating',
-    'Total Reviews',
-    'Owner Name',
-    'Employee Count',
-    'Employees Range',
-    'Revenue',
-    'Revenue Range',
-    'Email Confidence',
-    'Enrichment Status',
-    'Enrichment Source',
-    'Business Status',
-    'Created Date',
-    'Enriched Date',
-    'Company ID'
+  // Professional CSV template structure with proper formatting
+  const reportInfo = [
+    ['Exit School Off-Market Tool - Company Intelligence Report'],
+    [''],
+    ['Report Generated:', new Date().toLocaleString()],
+    ['Data Date:', exportDate.toLocaleDateString()],
+    ['Total Companies:', companies.length.toString()],
+    ['Enriched Companies:', companies.filter(c => c.is_enriched).length.toString()],
+    ['Pending Enrichment:', companies.filter(c => !c.is_enriched).length.toString()],
+    ['']
   ]
 
-  // Convert companies to CSV rows
-  const rows = companies.map(company => [
-    escapeCSV(company.name || ''),
-    escapeCSV(company.email || ''),
-    escapeCSV(company.phone || company.formatted_phone_number || ''),
-    escapeCSV(company.website || ''),
-    escapeCSV(company.formatted_address || company.location || ''),
-    escapeCSV(company.industry || ''),
-    company.rating || '',
-    company.user_ratings_total || company.total_reviews || '',
-    escapeCSV(company.owner_name || ''),
-    company.employee_count || '',
-    escapeCSV(company.employees_range || ''),
-    company.revenue || '',
-    escapeCSV(company.revenue_range || ''),
-    escapeCSV(company.email_confidence || ''),
-    company.is_enriched ? 'Enriched' : 'Pending',
-    escapeCSV(company.enrichment_source || ''),
-    escapeCSV(company.business_status || ''),
+  // Professional headers in row 8 (0-indexed row 7)
+  const headers = [
+    'Company Name',
+    'Primary Contact Email',
+    'Phone Number',
+    'Website URL',
+    'Business Address',
+    'Industry Category',
+    'Owner/Decision Maker',
+    'Employee Count',
+    'Company Size Range',
+    'Annual Revenue',
+    'Revenue Range',
+    'Google Rating',
+    'Total Reviews',
+    'Business Status',
+    'Email Confidence Level',
+    'Data Enrichment Status',
+    'Enrichment Source',
+    'Discovery Date',
+    'Last Enriched',
+    'Company ID',
+    'Place ID',
+    'Data Quality Score'
+  ]
+
+  // Convert companies to professional CSV rows
+  const dataRows = companies.map(company => [
+    escapeCSV(company.name || 'N/A'),
+    escapeCSV(company.email || 'Not Available'),
+    escapeCSV(formatPhoneNumber(company.phone || company.formatted_phone_number || '')),
+    escapeCSV(company.website || 'Not Available'),
+    escapeCSV(company.formatted_address || company.location || 'Not Available'),
+    escapeCSV(company.industry || determineIndustryFromTypes(company.types) || 'Not Specified'),
+    escapeCSV(company.owner_name || 'Not Identified'),
+    company.employee_count || 'Unknown',
+    escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'),
+    company.revenue ? `$${company.revenue.toLocaleString()}` : 'Not Available',
+    escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'),
+    company.rating ? `${company.rating}/5.0` : 'No Rating',
+    company.user_ratings_total || company.total_reviews || '0',
+    escapeCSV(company.business_status || 'Unknown'),
+    escapeCSV(company.email_confidence || 'Not Assessed'),
+    company.is_enriched ? 'Enriched' : 'Pending Enrichment',
+    escapeCSV(company.enrichment_source || 'Initial Discovery'),
     formatDate(company.created_at),
-    company.enriched_at ? formatDate(company.enriched_at) : '',
-    company.id
+    company.enriched_at ? formatDate(company.enriched_at) : 'Not Enriched',
+    company.id,
+    escapeCSV(company.place_id || ''),
+    calculateDataQualityScore(company)
   ])
 
-  // Combine headers and rows
-  const csvData = [headers, ...rows]
+  // Combine all sections
+  const allRows = [...reportInfo, headers, ...dataRows]
   
-  // Convert to CSV string
-  const csvString = csvData.map(row => row.join(',')).join('\\n')
+  // Convert to CSV string with proper line breaks
+  return allRows.map(row => Array.isArray(row) ? row.join(',') : row).join('\n')
+}
+
+// Helper functions for better data formatting
+function formatPhoneNumber(phone) {
+  if (!phone) return 'Not Available'
+  // Clean and format phone number
+  const cleaned = phone.replace(/\D/g, '')
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6)}`
+  }
+  return phone
+}
+
+function determineIndustryFromTypes(types) {
+  if (!types || !Array.isArray(types)) return null
   
-  // Add metadata header
-  const metadata = [
-    `# Company Export Report`,
-    `# Export Date: ${new Date().toLocaleString()}`,
-    `# Data Date: ${exportDate.toLocaleDateString()}`,
-    `# Total Companies: ${companies.length}`,
-    `# Enriched: ${companies.filter(c => c.is_enriched).length}`,
-    `# Pending: ${companies.filter(c => !c.is_enriched).length}`,
-    `#`,
-    ``
-  ].join('\\n')
+  const industryMap = {
+    'restaurant': 'Food & Beverage',
+    'food': 'Food & Beverage', 
+    'store': 'Retail',
+    'clothing_store': 'Retail - Apparel',
+    'health': 'Healthcare',
+    'hospital': 'Healthcare',
+    'school': 'Education',
+    'university': 'Education',
+    'bank': 'Financial Services',
+    'real_estate': 'Real Estate',
+    'lawyer': 'Legal Services',
+    'accounting': 'Professional Services',
+    'beauty_salon': 'Personal Services',
+    'gym': 'Fitness & Recreation',
+    'car_dealer': 'Automotive',
+    'gas_station': 'Automotive'
+  }
   
-  return metadata + csvString
+  for (const type of types) {
+    if (industryMap[type]) return industryMap[type]
+  }
+  return null
+}
+
+function determineEmployeeRange(count) {
+  if (!count) return null
+  if (count <= 10) return '1-10 employees'
+  if (count <= 50) return '11-50 employees'
+  if (count <= 200) return '51-200 employees'
+  if (count <= 1000) return '201-1000 employees'
+  return '1000+ employees'
+}
+
+function determineRevenueRange(revenue) {
+  if (!revenue) return null
+  if (revenue <= 100000) return '$0-$100K'
+  if (revenue <= 1000000) return '$100K-$1M'
+  if (revenue <= 10000000) return '$1M-$10M'
+  if (revenue <= 100000000) return '$10M-$100M'
+  return '$100M+'
+}
+
+function calculateDataQualityScore(company) {
+  let score = 0
+  let maxScore = 0
+  
+  // Scoring criteria
+  const criteria = [
+    { field: 'name', weight: 10 },
+    { field: 'email', weight: 15 },
+    { field: 'phone', weight: 10 },
+    { field: 'website', weight: 10 },
+    { field: 'formatted_address', weight: 8 },
+    { field: 'owner_name', weight: 12 },
+    { field: 'employee_count', weight: 8 },
+    { field: 'revenue', weight: 8 },
+    { field: 'industry', weight: 5 },
+    { field: 'rating', weight: 4 }
+  ]
+  
+  criteria.forEach(criterion => {
+    maxScore += criterion.weight
+    if (company[criterion.field] && company[criterion.field] !== '') {
+      score += criterion.weight
+    }
+  })
+  
+  // Bonus for enrichment
+  if (company.is_enriched) score += 10
+  maxScore += 10
+  
+  return `${Math.round((score / maxScore) * 100)}%`
 }
 
 function escapeCSV(value) {

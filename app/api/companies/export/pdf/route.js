@@ -26,16 +26,15 @@ export async function POST(request) {
       )
     }
 
-    // Generate PDF content (HTML that can be converted to PDF)
-    const pdfContent = generateCompanyReportHTML(company)
+    // Generate PDF using browser printing approach
+    const htmlContent = generateCompanyReportHTML(company)
     
-    // In a real implementation, you'd use a PDF library like puppeteer or jsPDF
-    // For now, we'll return the HTML content with proper headers for PDF generation
-    return new NextResponse(pdfContent, {
-      headers: {
-        'Content-Type': 'text/html',
-        'Content-Disposition': `attachment; filename="company-report-${company.name.replace(/[^a-zA-Z0-9]/g, '-')}.html"`
-      }
+    // Return structured data for client-side PDF generation
+    return NextResponse.json({
+      success: true,
+      companyName: company.name,
+      htmlContent: htmlContent,
+      filename: `company-report-${company.name.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`
     })
 
   } catch (error) {
