@@ -446,6 +446,13 @@ export default function DataEnrichmentPage() {
     return grouped
   }
 
+  // Helper function to check if date is today
+  const isToday = (dateString) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    return date.toDateString() === today.toDateString()
+  }
+
   // Helper function to format date for display
   const formatDisplayDate = (dateString) => {
     const date = new Date(dateString)
