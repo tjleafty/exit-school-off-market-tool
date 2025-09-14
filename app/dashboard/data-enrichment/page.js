@@ -450,7 +450,9 @@ export default function DataEnrichmentPage() {
   const isToday = (dateString) => {
     const date = new Date(dateString)
     const today = new Date()
-    return date.toDateString() === today.toDateString()
+    const isMatch = date.toDateString() === today.toDateString()
+    console.log('isToday check:', dateString, '→', date.toDateString(), 'vs today:', today.toDateString(), '=', isMatch)
+    return isMatch
   }
 
   // Helper function to format date for display
@@ -494,7 +496,9 @@ export default function DataEnrichmentPage() {
   }
 
   const getTodayCompanies = () => {
-    return companies.filter(c => isToday(c.created_at))
+    const todayCompanies = companies.filter(c => isToday(c.created_at))
+    console.log('getTodayCompanies result:', todayCompanies.length, 'out of', companies.length, 'total companies')
+    return todayCompanies
   }
 
   return (
@@ -644,11 +648,7 @@ export default function DataEnrichmentPage() {
             ) : companies.length > 0 ? (
               <div>
                 {/* Select All Header - only show if there are today's companies */}
-                {(() => {
-                  const todayCompanies = getTodayCompanies()
-                  console.log('Today companies for selection:', todayCompanies.length, todayCompanies)
-                  return todayCompanies.length > 0
-                })() && (
+                {getTodayCompanies().length > 0 ? (
                   <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -690,7 +690,7 @@ export default function DataEnrichmentPage() {
                       </div>
                     </div>
                   </div>
-                )}
+                ) : null}
                 
                 <ul className="divide-y divide-gray-200">
                   {companies.map((company) => (
