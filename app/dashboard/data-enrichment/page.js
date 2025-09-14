@@ -644,7 +644,11 @@ export default function DataEnrichmentPage() {
             ) : companies.length > 0 ? (
               <div>
                 {/* Select All Header - only show if there are today's companies */}
-                {getTodayCompanies().length > 0 && (
+                {(() => {
+                  const todayCompanies = getTodayCompanies()
+                  console.log('Today companies for selection:', todayCompanies.length, todayCompanies)
+                  return todayCompanies.length > 0
+                })() && (
                   <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">

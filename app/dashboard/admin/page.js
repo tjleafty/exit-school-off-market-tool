@@ -1,8 +1,26 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
 export default function AdminDashboard() {
+  const [advancedFilterEnabled, setAdvancedFilterEnabled] = useState(false)
+
+  // Load advanced filter setting from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedSetting = localStorage.getItem('advancedFilterEnabled')
+      setAdvancedFilterEnabled(savedSetting === 'true')
+    }
+  }, [])
+
+  // Save advanced filter setting to localStorage
+  const handleAdvancedFilterToggle = (enabled) => {
+    setAdvancedFilterEnabled(enabled)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('advancedFilterEnabled', enabled.toString())
+    }
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
@@ -103,6 +121,41 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </Link>
+          </div>
+
+          {/* Feature Toggles */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Settings</h3>
+            <div className="bg-white shadow rounded-lg">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">Advanced Search Filters</h4>
+                    <p className="text-sm text-gray-500">Show advanced filtering options in Company Discovery search</p>
+                  </div>
+                  <button
+                    onClick={() => handleAdvancedFilterToggle(!advancedFilterEnabled)}
+                    className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                      advancedFilterEnabled ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span className="sr-only">Toggle advanced filters</span>
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${
+                        advancedFilterEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="mt-3 text-xs text-gray-400">
+                  Status: <span className={advancedFilterEnabled ? 'text-green-600 font-medium' : 'text-gray-600'}>
+                    {advancedFilterEnabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                  {advancedFilterEnabled && <span className="ml-2">- Users can see advanced filter options</span>}
+                  {!advancedFilterEnabled && <span className="ml-2">- Advanced filters are hidden from users</span>}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Shared features */}

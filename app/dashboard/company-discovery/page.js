@@ -13,6 +13,7 @@ export default function CompanyDiscoveryPage() {
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState('USER')
   const [hasMoreResults, setHasMoreResults] = useState(false)
+  const [advancedFilterEnabled, setAdvancedFilterEnabled] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [nextPageToken, setNextPageToken] = useState(null)
@@ -37,6 +38,10 @@ export default function CompanyDiscoveryPage() {
         setUser(userData)
         setUserRole(userData.role || 'USER')
       }
+      
+      // Load advanced filter setting
+      const advancedFilterSetting = localStorage.getItem('advancedFilterEnabled')
+      setAdvancedFilterEnabled(advancedFilterSetting === 'true')
     }
   }, [])
 
@@ -420,12 +425,14 @@ export default function CompanyDiscoveryPage() {
 
               {/* Search Controls */}
               <div className="flex gap-4">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                >
-                  Advanced Filters {showFilters ? '▲' : '▼'}
-                </button>
+                {advancedFilterEnabled && (
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                  >
+                    Advanced Filters {showFilters ? '▲' : '▼'}
+                  </button>
+                )}
                 <button 
                   onClick={handleSearch}
                   disabled={isSearching}
@@ -453,7 +460,7 @@ export default function CompanyDiscoveryPage() {
               </div>
 
               {/* Filters */}
-              {showFilters && (
+              {advancedFilterEnabled && showFilters && (
                 <div className="border-t pt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
