@@ -29,6 +29,7 @@ export default function CompanyDiscoveryPage() {
   })
   
   const [enrichingCompany, setEnrichingCompany] = useState(null)
+  const [selectedCompanyDetails, setSelectedCompanyDetails] = useState(null)
 
   // Load user info
   useEffect(() => {
@@ -697,7 +698,10 @@ export default function CompanyDiscoveryPage() {
                             </div>
                           </div>
                           <div className="flex flex-col space-y-2 ml-4">
-                            <button className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700">
+                            <button 
+                              onClick={() => setSelectedCompanyDetails(company)}
+                              className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
+                            >
                               View Details
                             </button>
                             <button 
@@ -771,6 +775,149 @@ export default function CompanyDiscoveryPage() {
           </div>
         </div>
       </main>
+
+      {/* Company Details Modal */}
+      {selectedCompanyDetails && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">
+                  Company Details
+                </h3>
+                <button
+                  onClick={() => setSelectedCompanyDetails(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Company Info */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-3">Basic Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><strong>Name:</strong> {selectedCompanyDetails.name}</div>
+                      <div><strong>Address:</strong> {selectedCompanyDetails.formatted_address || selectedCompanyDetails.vicinity || 'Not available'}</div>
+                      <div><strong>Phone:</strong> {selectedCompanyDetails.formatted_phone_number || selectedCompanyDetails.phone || 'Not available'}</div>
+                      <div><strong>Website:</strong> {selectedCompanyDetails.website ? (
+                        <a href={selectedCompanyDetails.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {selectedCompanyDetails.website}
+                        </a>
+                      ) : 'Not available'}</div>
+                      <div><strong>Rating:</strong> {selectedCompanyDetails.rating ? `${selectedCompanyDetails.rating}/5.0 (${selectedCompanyDetails.user_ratings_total || 0} reviews)` : 'No rating'}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-3">Business Details</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><strong>Status:</strong> 
+                        <span className={`ml-1 px-2 py-1 text-xs rounded ${selectedCompanyDetails.is_enriched ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {selectedCompanyDetails.is_enriched ? 'Enriched' : 'Basic Info Only'}
+                        </span>
+                      </div>
+                      <div><strong>Business Status:</strong> {selectedCompanyDetails.business_status || 'Not specified'}</div>
+                      <div><strong>Price Level:</strong> {selectedCompanyDetails.price_level ? '$'.repeat(selectedCompanyDetails.price_level) : 'Not specified'}</div>
+                      <div><strong>Place ID:</strong> <code className="text-xs bg-gray-100 px-1 rounded">{selectedCompanyDetails.place_id}</code></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Categories/Types */}
+                {selectedCompanyDetails.types && (
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Categories</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedCompanyDetails.types.map((type, index) => (
+                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                          {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Opening Hours */}
+                {selectedCompanyDetails.opening_hours && (
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Opening Hours</h4>
+                    <div className="text-sm space-y-1">
+                      <div><strong>Open Now:</strong> 
+                        <span className={`ml-1 px-2 py-1 text-xs rounded ${selectedCompanyDetails.opening_hours.open_now ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {selectedCompanyDetails.opening_hours.open_now ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      {selectedCompanyDetails.opening_hours.weekday_text && (
+                        <div>
+                          <strong>Hours:</strong>
+                          <ul className="mt-1 ml-4 text-xs space-y-0.5">
+                            {selectedCompanyDetails.opening_hours.weekday_text.map((hours, index) => (
+                              <li key={index}>{hours}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Photos */}
+                {selectedCompanyDetails.photos && selectedCompanyDetails.photos.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Photos</h4>
+                    <div className="flex space-x-2 overflow-x-auto">
+                      {selectedCompanyDetails.photos.slice(0, 3).map((photo, index) => (
+                        <img 
+                          key={index}
+                          src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=200&photoreference=${photo.photo_reference}&key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}`}
+                          alt={`${selectedCompanyDetails.name} photo ${index + 1}`}
+                          className="w-20 h-20 object-cover rounded"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-between mt-6">
+                <button
+                  onClick={() => setSelectedCompanyDetails(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Close
+                </button>
+                <div className="flex space-x-2">
+                  {selectedCompanyDetails.website && (
+                    <a
+                      href={selectedCompanyDetails.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Visit Website
+                    </a>
+                  )}
+                  <button
+                    onClick={() => enrichCompany(selectedCompanyDetails)}
+                    disabled={enrichingCompany === (selectedCompanyDetails.place_id || selectedCompanyDetails.id) || selectedCompanyDetails.is_enriched}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {selectedCompanyDetails.is_enriched ? 'Already Enriched' : 'Enrich Data'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
