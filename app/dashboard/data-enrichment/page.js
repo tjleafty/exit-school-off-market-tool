@@ -202,182 +202,211 @@ export default function DataEnrichmentPage() {
 
   const generatePDFFromHTML = async (htmlContent, filename, companyName) => {
     try {
-      console.log('Starting PDF generation for:', companyName)
+      console.log('Starting text-based PDF generation for:', companyName)
       
-      // Import libraries at the top level to avoid dynamic import issues
-      const html2canvas = (await import('html2canvas')).default
+      // Import jsPDF only (no html2canvas needed)
       const { jsPDF } = await import('jspdf')
       
-      console.log('Libraries loaded successfully')
+      console.log('jsPDF library loaded successfully')
 
-      // Create a proper iframe to render complete HTML with CSS
-      const iframe = document.createElement('iframe')
-      iframe.style.position = 'absolute'
-      iframe.style.left = '-9999px'
-      iframe.style.top = '0'
-      iframe.style.width = '794px'  // A4 width in pixels
-      iframe.style.height = '1123px' // A4 height in pixels
-      iframe.style.border = 'none'
-      iframe.style.backgroundColor = '#ffffff'
-      
-      document.body.appendChild(iframe)
-      
-      // Write the complete HTML content to iframe
-      iframe.contentDocument.open()
-      iframe.contentDocument.write(htmlContent)
-      iframe.contentDocument.close()
-      
-      console.log('Iframe created with complete HTML content')
-      
-      // Wait for iframe content to load completely
-      await new Promise((resolve) => {
-        iframe.onload = () => {
-          console.log('Iframe loaded successfully')
-          setTimeout(resolve, 1000) // Additional time for CSS and fonts
-        }
-        // Fallback timeout
-        setTimeout(resolve, 3000)
+      // Parse company data from the API response instead of HTML
+      const response = await fetch('/api/companies/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: selectedCompany.id })
       })
       
-      // Get the iframe body for canvas rendering
-      const container = iframe.contentDocument.body
+      if (!response.ok) {
+        throw new Error('Failed to fetch company data')
+      }
       
-      console.log('Container ready for rendering')
-      console.log('Container HTML:', container.innerHTML.substring(0, 200) + '...')
-      console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight)
-      
-      console.log('Generating canvas from HTML...')
-      
-      // Generate canvas with better settings for PDF
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        width: container.offsetWidth,
-        height: container.offsetHeight,
-        logging: true, // Enable logging to debug issues
-        removeContainer: false,
-        foreignObjectRendering: false, // Disable this as it can cause blank renders
-        ignoreElements: function(element) {
-          return element.tagName === 'SCRIPT'
-        }
-      })
-      
-      console.log('Canvas created with dimensions:', canvas.width, 'x', canvas.height)
-      
-      console.log('Canvas generated successfully, creating PDF...')
+      const { success, companyData } = await response.json()
+      if (!success) {
+        throw new Error('Invalid company data response')
+      }
 
-      // Create PDF with proper margins
+      // Create PDF with text-based content
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4',
-        compress: true
+        format: 'a4'
       })
 
       const pageWidth = 210 // A4 width in mm
       const pageHeight = 297 // A4 height in mm
-      const margin = 15 // 15mm margins
+      const margin = 20
       const contentWidth = pageWidth - (margin * 2)
-      const contentHeight = pageHeight - (margin * 2)
-      
-      // Calculate proper image dimensions maintaining aspect ratio
-      const canvasRatio = canvas.height / canvas.width
-      const imgWidth = contentWidth
-      const imgHeight = contentWidth * canvasRatio
-      
-      console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}`)
-      console.log(`PDF image dimensions: ${imgWidth}mm x ${imgHeight}mm`)
-      
-      if (imgHeight <= contentHeight) {
-        // Single page - fits on one page
-        pdf.addImage(
-          canvas.toDataURL('image/png', 0.95), 
-          'PNG', 
-          margin, 
-          margin, 
-          imgWidth, 
-          imgHeight
-        )
-      } else {
-        // Multiple pages - split content properly
-        const pagesNeeded = Math.ceil(imgHeight / contentHeight)
-        const pixelsPerPage = canvas.height / pagesNeeded
+      let yPosition = margin
+
+      // Helper function to add text with word wrapping
+      const addText = (text, x, y, options = {}) => {
+        const fontSize = options.fontSize || 10
+        const maxWidth = options.maxWidth || contentWidth
+        const fontStyle = options.fontStyle || 'normal'
         
-        console.log(`Content requires ${pagesNeeded} pages`)
+        pdf.setFontSize(fontSize)
+        pdf.setFont('helvetica', fontStyle)
         
-        for (let pageNum = 0; pageNum < pagesNeeded; pageNum++) {
-          if (pageNum > 0) {
-            pdf.addPage()
-          }
-          
-          // Create canvas for this page
-          const pageCanvas = document.createElement('canvas')
-          pageCanvas.width = canvas.width
-          pageCanvas.height = Math.min(pixelsPerPage, canvas.height - (pageNum * pixelsPerPage))
-          
-          const ctx = pageCanvas.getContext('2d')
-          ctx.fillStyle = '#ffffff'
-          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
-          
-          // Draw the portion of the original canvas for this page
-          ctx.drawImage(
-            canvas,
-            0, pageNum * pixelsPerPage, // source x, y
-            canvas.width, pageCanvas.height, // source width, height
-            0, 0, // destination x, y
-            pageCanvas.width, pageCanvas.height // destination width, height
-          )
-          
-          // Add to PDF with proper scaling
-          const pageImgHeight = (pageCanvas.height / canvas.height) * imgHeight
-          pdf.addImage(
-            pageCanvas.toDataURL('image/png', 0.95), 
-            'PNG', 
-            margin, 
-            margin, 
-            imgWidth, 
-            pageImgHeight
-          )
+        if (options.color) {
+          pdf.setTextColor(...options.color)
+        } else {
+          pdf.setTextColor(0, 0, 0) // Black
+        }
+        
+        const lines = pdf.splitTextToSize(text, maxWidth)
+        pdf.text(lines, x, y)
+        return y + (lines.length * fontSize * 0.353) // Convert pt to mm
+      }
+
+      // Helper function to add a new page if needed
+      const checkPageBreak = (requiredHeight) => {
+        if (yPosition + requiredHeight > pageHeight - margin) {
+          pdf.addPage()
+          yPosition = margin
         }
       }
-      
-      // Debug: Check if canvas has any content
-      const ctx = canvas.getContext('2d')
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      let hasContent = false
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        if (imageData.data[i] !== 255 || imageData.data[i+1] !== 255 || imageData.data[i+2] !== 255) {
-          hasContent = true
-          break
-        }
+
+      // Company data from the response
+      const company = selectedCompany
+
+      // Header
+      yPosition = addText('EXIT SCHOOL OFF-MARKET TOOL', margin, yPosition, {
+        fontSize: 16,
+        fontStyle: 'bold',
+        color: [59, 130, 246] // Blue
+      })
+      yPosition = addText('Company Intelligence Report', margin, yPosition + 5, {
+        fontSize: 12,
+        color: [107, 114, 128] // Gray
+      })
+      yPosition += 10
+
+      // Company Name
+      yPosition = addText(company.name, margin, yPosition, {
+        fontSize: 18,
+        fontStyle: 'bold'
+      })
+      yPosition += 8
+
+      // Generation Date
+      yPosition = addText(`Report Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, margin, yPosition, {
+        fontSize: 9,
+        color: [107, 114, 128]
+      })
+      yPosition += 15
+
+      // Company Overview Section
+      checkPageBreak(50)
+      yPosition = addText('📊 COMPANY OVERVIEW', margin, yPosition, {
+        fontSize: 12,
+        fontStyle: 'bold',
+        color: [59, 130, 246]
+      })
+      yPosition += 8
+
+      const overviewData = [
+        ['Status:', company.is_enriched ? 'Enriched' : 'Pending Enrichment'],
+        ['Industry:', company.industry || 'Not specified'],
+        ['Website:', company.website || 'Not available'],
+        ['Rating:', company.rating ? `${company.rating}/5.0 (${company.user_ratings_total || 0} reviews)` : 'No rating']
+      ]
+
+      overviewData.forEach(([label, value]) => {
+        yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
+        yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10 }) + 2
+      })
+      yPosition += 5
+
+      // Contact Information Section
+      checkPageBreak(50)
+      yPosition = addText('📍 CONTACT INFORMATION', margin, yPosition, {
+        fontSize: 12,
+        fontStyle: 'bold',
+        color: [59, 130, 246]
+      })
+      yPosition += 8
+
+      const contactData = [
+        ['Address:', company.formatted_address || company.location || 'Not available'],
+        ['Phone:', company.phone || company.formatted_phone_number || 'Not available'],
+        ['Email:', company.email || 'Not available'],
+        ['Owner:', company.owner_name || 'Not identified']
+      ]
+
+      contactData.forEach(([label, value]) => {
+        yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
+        yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10, maxWidth: contentWidth - 40 }) + 2
+      })
+      yPosition += 5
+
+      // Business Intelligence Section (only if enriched)
+      if (company.is_enriched) {
+        checkPageBreak(50)
+        yPosition = addText('💼 BUSINESS INTELLIGENCE', margin, yPosition, {
+          fontSize: 12,
+          fontStyle: 'bold',
+          color: [59, 130, 246]
+        })
+        yPosition += 8
+
+        const businessData = [
+          ['Employee Count:', `${company.employee_count || 'Not available'} ${company.employees_range ? `(${company.employees_range})` : ''}`],
+          ['Revenue:', `${company.revenue ? `$${company.revenue.toLocaleString()}` : 'Not available'} ${company.revenue_range ? `(${company.revenue_range})` : ''}`],
+          ['Email Confidence:', company.email_confidence || 'Not specified'],
+          ['Enrichment Source:', company.enrichment_source || 'Not specified']
+        ]
+
+        businessData.forEach(([label, value]) => {
+          yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
+          yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10, maxWidth: contentWidth - 40 }) + 2
+        })
+        yPosition += 5
       }
-      console.log('Canvas has content:', hasContent)
-      
-      if (!hasContent) {
-        console.warn('Canvas appears to be blank! This will result in a blank PDF.')
-      }
-      
-      console.log('PDF created, initiating download...')
+
+      // Discovery Information Section
+      checkPageBreak(50)
+      yPosition = addText('🔍 DISCOVERY INFORMATION', margin, yPosition, {
+        fontSize: 12,
+        fontStyle: 'bold',
+        color: [59, 130, 246]
+      })
+      yPosition += 8
+
+      const discoveryData = [
+        ['Created:', new Date(company.created_at).toLocaleString()],
+        ['Last Updated:', new Date(company.updated_at).toLocaleString()],
+        ['Enriched At:', company.enriched_at ? new Date(company.enriched_at).toLocaleString() : 'Not enriched'],
+        ['Company ID:', company.id],
+        ['Place ID:', company.place_id || 'Not available']
+      ]
+
+      discoveryData.forEach(([label, value]) => {
+        yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
+        yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10, maxWidth: contentWidth - 40 }) + 2
+      })
+
+      // Footer
+      checkPageBreak(20)
+      yPosition = pageHeight - margin - 10
+      yPosition = addText('This report was generated by Exit School Off-Market Tool', margin, yPosition, {
+        fontSize: 8,
+        color: [107, 114, 128]
+      })
+      yPosition = addText(`Generated on ${new Date().toLocaleString()}`, margin, yPosition + 3, {
+        fontSize: 8,
+        color: [107, 114, 128]
+      })
+
+      console.log('Text-based PDF created successfully')
       
       // Download the PDF
       pdf.save(filename)
       
-      // Clean up
-      document.body.removeChild(iframe)
-      
       console.log('PDF generation completed successfully')
-      alert(`✅ PDF report for ${companyName} has been downloaded successfully!`)
+      alert(`✅ Text-based PDF report for ${companyName} has been downloaded successfully!`)
       
     } catch (error) {
-      console.error('❌ Error generating PDF:', error)
-      
-      // Clean up any iframe that might have been created
-      const iframes = document.querySelectorAll('iframe[style*="-9999px"]')
-      iframes.forEach(iframe => {
-        if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
-      })
+      console.error('❌ Error generating text-based PDF:', error)
       
       // Fallback to print dialog if PDF generation fails
       console.log('Falling back to print dialog...')
