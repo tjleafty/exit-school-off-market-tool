@@ -91,6 +91,7 @@ function generateCSV(companies, exportDate) {
     'Primary Contact Email',
     'Phone Number',
     'Website URL',
+    'Google Listing URL',
     'Business Address',
     'Industry Category',
     'Owner/Decision Maker',
@@ -131,67 +132,71 @@ function generateCSV(companies, exportDate) {
     // Column 4: Website URL
     rowData.push(escapeCSV(company.website || 'Not Available'))
     
-    // Column 5: Business Address
+    // Column 5: Google Listing URL
+    const googleListingUrl = company.place_id ? `https://www.google.com/maps/place/?q=place_id:${company.place_id}` : 'Not Available'
+    rowData.push(escapeCSV(googleListingUrl))
+    
+    // Column 6: Business Address
     rowData.push(escapeCSV(company.formatted_address || company.location || 'Not Available'))
     
-    // Column 6: Industry Category
+    // Column 7: Industry Category
     rowData.push(escapeCSV(company.industry || determineIndustryFromTypes(company.types) || 'Not Specified'))
     
-    // Column 7: Owner/Decision Maker
+    // Column 8: Owner/Decision Maker
     rowData.push(escapeCSV(company.owner_name || 'Not Identified'))
     
-    // Column 8: Owner Email
+    // Column 9: Owner Email
     rowData.push(escapeCSV(company.owner_email || company.email || 'Not Available'))
     
-    // Column 9: Owner Phone
+    // Column 10: Owner Phone
     rowData.push(escapeCSV(formatPhoneNumber(company.owner_phone || '') || 'Not Available'))
     
-    // Column 10: Owner LinkedIn
+    // Column 11: Owner LinkedIn
     rowData.push(escapeCSV(company.owner_linkedin || company.linkedin_url || 'Not Available'))
     
-    // Column 11: Employee Count
+    // Column 12: Employee Count
     rowData.push(escapeCSV(company.employee_count ? company.employee_count.toString() : 'Unknown'))
     
-    // Column 12: Company Size Range
+    // Column 13: Company Size Range
     rowData.push(escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'))
     
-    // Column 13: Annual Revenue (no commas for CSV compatibility)
+    // Column 14: Annual Revenue (no commas for CSV compatibility)
     rowData.push(escapeCSV(company.revenue ? `$${company.revenue}` : 'Not Available'))
     
-    // Column 14: Revenue Range
+    // Column 15: Revenue Range
     rowData.push(escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'))
     
-    // Column 15: Google Rating
+    // Column 16: Google Rating
     rowData.push(escapeCSV(company.rating ? `${company.rating}/5.0` : 'No Rating'))
     
-    // Column 16: Total Reviews
+    // Column 17: Total Reviews
     rowData.push(escapeCSV((company.user_ratings_total || company.total_reviews || '0').toString()))
     
-    // Column 17: Business Status
+    // Column 18: Business Status
     rowData.push(escapeCSV(company.business_status || 'Unknown'))
     
-    // Column 18: Email Confidence Level
+    // Column 19: Email Confidence Level
     rowData.push(escapeCSV(company.email_confidence || 'Not Assessed'))
     
-    // Column 19: Data Enrichment Status
+    // Column 20: Data Enrichment Status
     rowData.push(escapeCSV(company.is_enriched ? 'Enriched' : 'Pending Enrichment'))
     
-    // Column 20: Enrichment Source
+    // Column 21: Enrichment Source
     rowData.push(escapeCSV(company.enrichment_source || 'Initial Discovery'))
     
-    // Column 21: Discovery Date
+    // Column 22: Discovery Date
     rowData.push(escapeCSV(formatDate(company.created_at)))
     
-    // Column 22: Last Enriched
+    // Column 23: Last Enriched
     rowData.push(escapeCSV(company.enriched_at ? formatDate(company.enriched_at) : 'Not Enriched'))
     
-    // Column 23: Company ID
+    // Column 24: Company ID
     rowData.push(escapeCSV(company.id || ''))
     
-    // Column 24: Place ID
+    // Column 25: Place ID
     rowData.push(escapeCSV(company.place_id || ''))
     
-    // Column 25: Data Quality Score
+    // Column 26: Data Quality Score
     rowData.push(escapeCSV(calculateDataQualityScore(company)))
     
     return rowData

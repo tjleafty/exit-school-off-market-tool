@@ -31,6 +31,11 @@ export default function CompanyDiscoveryPage() {
   const [enrichingCompany, setEnrichingCompany] = useState(null)
   const [selectedCompanyDetails, setSelectedCompanyDetails] = useState(null)
 
+  // Helper function to generate Google listing URL
+  const getGoogleListingUrl = (placeId) => {
+    return `https://www.google.com/maps/place/?q=place_id:${placeId}`
+  }
+
   // Load user info
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -685,6 +690,16 @@ export default function CompanyDiscoveryPage() {
                                   🌐 Website
                                 </a>
                               )}
+                              {company.place_id && (
+                                <a 
+                                  href={getGoogleListingUrl(company.place_id)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-red-600 hover:text-red-500"
+                                >
+                                  📍 Google Listing
+                                </a>
+                              )}
                               {company.linkedin_url && (
                                 <a 
                                   href={company.linkedin_url} 
@@ -903,6 +918,16 @@ export default function CompanyDiscoveryPage() {
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                       Visit Website
+                    </a>
+                  )}
+                  {selectedCompanyDetails.place_id && (
+                    <a
+                      href={getGoogleListingUrl(selectedCompanyDetails.place_id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      📍 Google Listing
                     </a>
                   )}
                   <button
