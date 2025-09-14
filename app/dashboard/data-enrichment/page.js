@@ -15,6 +15,8 @@ export default function DataEnrichmentPage() {
   const [selectedHistoryDate, setSelectedHistoryDate] = useState(null)
   const [exportingPDF, setExportingPDF] = useState(null)
   const [exportingCSV, setExportingCSV] = useState(false)
+  const [selectedCompanies, setSelectedCompanies] = useState(new Set())
+  const [selectAllChecked, setSelectAllChecked] = useState(false)
 
   // Load user from localStorage
   useEffect(() => {
@@ -455,6 +457,39 @@ export default function DataEnrichmentPage() {
     })
   }
 
+  // Selection handling functions
+  const handleSelectCompany = (companyId) => {
+    const newSelected = new Set(selectedCompanies)
+    if (newSelected.has(companyId)) {
+      newSelected.delete(companyId)
+    } else {
+      newSelected.add(companyId)
+    }
+    setSelectedCompanies(newSelected)
+    
+    // Update select all checkbox state
+    const todayCompanies = companies.filter(c => isToday(c.created_at))
+    setSelectAllChecked(newSelected.size === todayCompanies.length && todayCompanies.length > 0)
+  }
+
+  const handleSelectAll = () => {
+    const todayCompanies = companies.filter(c => isToday(c.created_at))
+    if (selectAllChecked) {
+      // Deselect all
+      setSelectedCompanies(new Set())
+      setSelectAllChecked(false)
+    } else {
+      // Select all
+      const allIds = new Set(todayCompanies.map(c => c.id))
+      setSelectedCompanies(allIds)
+      setSelectAllChecked(true)
+    }
+  }
+
+  const getTodayCompanies = () => {
+    return companies.filter(c => isToday(c.created_at))
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
@@ -600,12 +635,68 @@ export default function DataEnrichmentPage() {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Companies...</h3>
               </div>
             ) : companies.length > 0 ? (
-              <ul className="divide-y divide-gray-200">
-                {companies.map((company) => (
-                  <li key={company.id} className="px-6 py-4">
+              <div>
+                {/* Select All Header - only show if there are today's companies */}
+                {getTodayCompanies().length > 0 && (
+                  <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="select-all"
+                          checked={selectAllChecked}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="select-all" className="ml-2 text-sm font-medium text-gray-700">
+                          {selectAllChecked ? 'Deselect All' : 'Select All'} ({getTodayCompanies().length} companies)
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="text-sm text-gray-500">
+                          {selectedCompanies.size > 0 && `${selectedCompanies.size} selected`}
+                        </div>
+                        {selectedCompanies.size > 0 && (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                const selectedArray = Array.from(selectedCompanies).map(id => 
+                                  companies.find(c => c.id === id)
+                                ).filter(Boolean)
+                                
+                                selectedArray.forEach(company => {
+                                  if (!company.is_enriched) {
+                                    enrichCompany(company.id)
+                                  }
+                                })
+                              }}
+                              className="px-2 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
+                            >
+                              🔄 Enrich Selected
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <ul className="divide-y divide-gray-200">
+                  {companies.map((company) => (
+                    <li key={company.id} className={`px-6 py-4 ${selectedCompanies.has(company.id) ? 'bg-blue-50' : ''}`}>
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center">
+                          {/* Checkbox - only show for today's companies */}
+                          {isToday(company.created_at) && (
+                            <input
+                              type="checkbox"
+                              checked={selectedCompanies.has(company.id)}
+                              onChange={() => handleSelectCompany(company.id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-3"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center">
                           <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
                           <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
                             company.is_enriched 
@@ -669,7 +760,8 @@ export default function DataEnrichmentPage() {
                     </div>
                   </li>
                 ))}
-              </ul>
+                </ul>
+              </div>
             ) : (
               <div className="px-6 py-12 text-center">
                 <div className="text-gray-400 text-6xl mb-4">📅</div>
