@@ -210,40 +210,41 @@ export default function DataEnrichmentPage() {
       
       console.log('Libraries loaded successfully')
 
-      // Create a temporary container div with pixel dimensions for better compatibility
-      const container = document.createElement('div')
-      container.innerHTML = htmlContent
-      container.style.position = 'absolute'
-      container.style.left = '-9999px'
-      container.style.top = '0'
-      container.style.width = '794px'  // A4 width in pixels (210mm * 3.78)
-      container.style.backgroundColor = '#ffffff'
-      container.style.padding = '40px'  // ~15mm in pixels
-      container.style.boxSizing = 'border-box'
-      container.style.fontFamily = 'Arial, sans-serif'
-      container.style.fontSize = '14px'
-      container.style.lineHeight = '1.5'
-      container.style.color = '#000000'
+      // Create a proper iframe to render complete HTML with CSS
+      const iframe = document.createElement('iframe')
+      iframe.style.position = 'absolute'
+      iframe.style.left = '-9999px'
+      iframe.style.top = '0'
+      iframe.style.width = '794px'  // A4 width in pixels
+      iframe.style.height = '1123px' // A4 height in pixels
+      iframe.style.border = 'none'
+      iframe.style.backgroundColor = '#ffffff'
       
-      // Ensure all nested elements are visible
-      const allElements = container.getElementsByTagName('*')
-      for (let element of allElements) {
-        element.style.opacity = '1'
-        element.style.visibility = 'visible'
-        element.style.display = element.style.display || 'block'
-        if (element.tagName === 'DIV' && element.className.includes('grid')) {
-          element.style.display = 'grid'
+      document.body.appendChild(iframe)
+      
+      // Write the complete HTML content to iframe
+      iframe.contentDocument.open()
+      iframe.contentDocument.write(htmlContent)
+      iframe.contentDocument.close()
+      
+      console.log('Iframe created with complete HTML content')
+      
+      // Wait for iframe content to load completely
+      await new Promise((resolve) => {
+        iframe.onload = () => {
+          console.log('Iframe loaded successfully')
+          setTimeout(resolve, 1000) // Additional time for CSS and fonts
         }
-      }
+        // Fallback timeout
+        setTimeout(resolve, 3000)
+      })
       
-      document.body.appendChild(container)
+      // Get the iframe body for canvas rendering
+      const container = iframe.contentDocument.body
       
-      console.log('Container created and added to DOM')
+      console.log('Container ready for rendering')
       console.log('Container HTML:', container.innerHTML.substring(0, 200) + '...')
       console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight)
-      
-      // Wait longer for content to fully render and fonts to load
-      await new Promise(resolve => setTimeout(resolve, 1500))
       
       console.log('Generating canvas from HTML...')
       
@@ -364,7 +365,7 @@ export default function DataEnrichmentPage() {
       pdf.save(filename)
       
       // Clean up
-      document.body.removeChild(container)
+      document.body.removeChild(iframe)
       
       console.log('PDF generation completed successfully')
       alert(`✅ PDF report for ${companyName} has been downloaded successfully!`)
@@ -372,10 +373,10 @@ export default function DataEnrichmentPage() {
     } catch (error) {
       console.error('❌ Error generating PDF:', error)
       
-      // Clean up any container that might have been created
-      const containers = document.querySelectorAll('div[style*="-9999px"]')
-      containers.forEach(container => {
-        if (container.parentNode) container.parentNode.removeChild(container)
+      // Clean up any iframe that might have been created
+      const iframes = document.querySelectorAll('iframe[style*="-9999px"]')
+      iframes.forEach(iframe => {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe)
       })
       
       // Fallback to print dialog if PDF generation fails
