@@ -176,22 +176,10 @@ export default function DataEnrichmentPage() {
     try {
       setExportingPDF(company.id)
       
-      const response = await fetch('/api/companies/export/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: company.id })
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        
-        // Generate PDF using client-side HTML to Canvas conversion
-        await generatePDFFromHTML(result.htmlContent, result.filename, company.name)
-        
-      } else {
-        const error = await response.json()
-        alert(`Failed to export PDF: ${error.error}`)
-      }
+      // Generate text-based PDF directly using company data
+      const filename = `company-report-${company.name.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`
+      await generateTextPDF(company, filename)
+      
     } catch (error) {
       console.error('Error exporting PDF:', error)
       alert('Error exporting PDF report. Please try again.')
@@ -200,30 +188,14 @@ export default function DataEnrichmentPage() {
     }
   }
 
-  const generatePDFFromHTML = async (htmlContent, filename, companyName) => {
+  const generateTextPDF = async (company, filename) => {
     try {
-      console.log('Starting text-based PDF generation for:', companyName)
+      console.log('Starting text-based PDF generation for:', company.name)
       
       // Import jsPDF only (no html2canvas needed)
       const { jsPDF } = await import('jspdf')
       
       console.log('jsPDF library loaded successfully')
-
-      // Parse company data from the API response instead of HTML
-      const response = await fetch('/api/companies/export/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: selectedCompany.id })
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch company data')
-      }
-      
-      const { success, companyData } = await response.json()
-      if (!success) {
-        throw new Error('Invalid company data response')
-      }
 
       // Create PDF with text-based content
       const pdf = new jsPDF({
@@ -266,8 +238,7 @@ export default function DataEnrichmentPage() {
         }
       }
 
-      // Company data from the response
-      const company = selectedCompany
+      // Use the company data passed as parameter
 
       // Header
       yPosition = addText('EXIT SCHOOL OFF-MARKET TOOL', margin, yPosition, {
@@ -403,19 +374,11 @@ export default function DataEnrichmentPage() {
       pdf.save(filename)
       
       console.log('PDF generation completed successfully')
-      alert(`✅ Text-based PDF report for ${companyName} has been downloaded successfully!`)
+      alert(`✅ Text-based PDF report for ${company.name} has been downloaded successfully!`)
       
     } catch (error) {
       console.error('❌ Error generating text-based PDF:', error)
-      
-      // Fallback to print dialog if PDF generation fails
-      console.log('Falling back to print dialog...')
-      const printWindow = window.open('', '_blank', 'width=800,height=600')
-      printWindow.document.write(htmlContent)
-      printWindow.document.close()
-      printWindow.print()
-      
-      alert('❌ PDF generation failed. Please use the print dialog to save as PDF.')
+      throw error // Re-throw to be handled by exportToPDF
     }
   }
 
