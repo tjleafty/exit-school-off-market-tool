@@ -10,6 +10,7 @@ export default function CompanyDiscoveryPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [savedLists, setSavedLists] = useState([])
   const [selectedCompanies, setSelectedCompanies] = useState([])
+  const [selectAllChecked, setSelectAllChecked] = useState(false)
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState('USER')
   const [hasMoreResults, setHasMoreResults] = useState(false)
@@ -131,6 +132,9 @@ export default function CompanyDiscoveryPage() {
         
         if (isNewSearch) {
           setResults(newCompanies)
+          // Reset selection state for new search
+          setSelectedCompanies([])
+          setSelectAllChecked(false)
         } else {
           // Append new results, filtering out duplicates
           setResults(prev => {
@@ -196,11 +200,29 @@ export default function CompanyDiscoveryPage() {
   }
 
   const toggleCompanySelection = (companyId) => {
-    setSelectedCompanies(prev => 
-      prev.includes(companyId)
+    setSelectedCompanies(prev => {
+      const newSelection = prev.includes(companyId)
         ? prev.filter(id => id !== companyId)
         : [...prev, companyId]
-    )
+      
+      // Update select all checkbox state
+      setSelectAllChecked(newSelection.length === results.length && results.length > 0)
+      
+      return newSelection
+    })
+  }
+
+  const handleSelectAll = () => {
+    if (selectAllChecked) {
+      // Deselect all
+      setSelectedCompanies([])
+      setSelectAllChecked(false)
+    } else {
+      // Select all
+      const allIds = results.map(company => company.id)
+      setSelectedCompanies(allIds)
+      setSelectAllChecked(true)
+    }
   }
 
   const addToList = async () => {
@@ -584,6 +606,29 @@ export default function CompanyDiscoveryPage() {
                 </div>
               )}
             </div>
+
+            {/* Select All Header - only show if there are results */}
+            {results.length > 0 && (
+              <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="select-all-results"
+                      checked={selectAllChecked}
+                      onChange={handleSelectAll}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="select-all-results" className="ml-2 text-sm font-medium text-gray-700">
+                      {selectAllChecked ? 'Deselect All' : 'Select All'} ({results.length} companies)
+                    </label>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {selectedCompanies.length > 0 && `${selectedCompanies.length} selected`}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {results.length > 0 ? (
               <ul className="divide-y divide-gray-200">
