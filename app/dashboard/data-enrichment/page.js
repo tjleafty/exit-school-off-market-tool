@@ -697,26 +697,27 @@ export default function DataEnrichmentPage() {
                           )}
                           <div className="flex-1">
                             <div className="flex items-center">
-                          <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
-                          <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                            company.is_enriched 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {company.is_enriched ? 'Enriched' : 'Pending'}
-                          </span>
+                              <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
+                              <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                                company.is_enriched 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {company.is_enriched ? 'Enriched' : 'Pending'}
+                              </span>
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                              <div>📧 {company.email || 'No email'}</div>
+                              <div>📞 {company.phone || company.formatted_phone_number || 'No phone'}</div>
+                              <div>🌐 {company.website ? (
+                                <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                  {new URL(company.website).hostname}
+                                </a>
+                              ) : 'No website'}</div>
+                              <div>📅 Updated: {company.updated_at ? new Date(company.updated_at).toLocaleDateString() : 'Never'}</div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
-                          <div>📧 {company.email || 'No email'}</div>
-                          <div>📞 {company.phone || company.formatted_phone_number || 'No phone'}</div>
-                          <div>🌐 {company.website ? (
-                            <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                              {new URL(company.website).hostname}
-                            </a>
-                          ) : 'No website'}</div>
-                          <div>📅 Updated: {company.updated_at ? new Date(company.updated_at).toLocaleDateString() : 'Never'}</div>
-                        </div>
-                      </div>
                       <div className="flex flex-col space-y-2">
                         <div className="flex space-x-2">
                           {!company.is_enriched && (
