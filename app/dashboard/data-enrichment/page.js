@@ -210,63 +210,60 @@ export default function DataEnrichmentPage() {
       
       console.log('Libraries loaded successfully')
 
-      // Create a temporary container div with proper A4 dimensions
+      // Create a temporary container div with pixel dimensions for better compatibility
       const container = document.createElement('div')
       container.innerHTML = htmlContent
       container.style.position = 'absolute'
       container.style.left = '-9999px'
       container.style.top = '0'
-      container.style.width = '210mm'  // A4 width
-      container.style.maxWidth = '794px'  // Fallback pixel width
+      container.style.width = '794px'  // A4 width in pixels (210mm * 3.78)
       container.style.backgroundColor = '#ffffff'
-      container.style.padding = '15mm'
+      container.style.padding = '40px'  // ~15mm in pixels
       container.style.boxSizing = 'border-box'
       container.style.fontFamily = 'Arial, sans-serif'
-      container.style.fontSize = '12px'
-      container.style.lineHeight = '1.4'
+      container.style.fontSize = '14px'
+      container.style.lineHeight = '1.5'
+      container.style.color = '#000000'
       
-      // Add proper page break styling
-      const style = document.createElement('style')
-      style.textContent = `
-        .pdf-container .section {
-          page-break-inside: avoid;
-          margin-bottom: 15px;
+      // Ensure all nested elements are visible
+      const allElements = container.getElementsByTagName('*')
+      for (let element of allElements) {
+        element.style.opacity = '1'
+        element.style.visibility = 'visible'
+        element.style.display = element.style.display || 'block'
+        if (element.tagName === 'DIV' && element.className.includes('grid')) {
+          element.style.display = 'grid'
         }
-        .pdf-container .header {
-          page-break-after: avoid;
-        }
-        .pdf-container .info-grid {
-          page-break-inside: avoid;
-        }
-        .pdf-container {
-          width: 180mm !important;
-          max-width: none !important;
-        }
-      `
-      document.head.appendChild(style)
-      container.className = 'pdf-container'
+      }
       
       document.body.appendChild(container)
       
       console.log('Container created and added to DOM')
+      console.log('Container HTML:', container.innerHTML.substring(0, 200) + '...')
+      console.log('Container dimensions:', container.offsetWidth, 'x', container.offsetHeight)
       
       // Wait longer for content to fully render and fonts to load
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 1500))
       
       console.log('Generating canvas from HTML...')
       
       // Generate canvas with better settings for PDF
       const canvas = await html2canvas(container, {
-        scale: 1.5, // Reduced scale for better performance
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
         width: container.offsetWidth,
         height: container.offsetHeight,
-        logging: false,
+        logging: true, // Enable logging to debug issues
         removeContainer: false,
-        foreignObjectRendering: true
+        foreignObjectRendering: false, // Disable this as it can cause blank renders
+        ignoreElements: function(element) {
+          return element.tagName === 'SCRIPT'
+        }
       })
+      
+      console.log('Canvas created with dimensions:', canvas.width, 'x', canvas.height)
       
       console.log('Canvas generated successfully, creating PDF...')
 
@@ -345,8 +342,21 @@ export default function DataEnrichmentPage() {
         }
       }
       
-      // Clean up the added style
-      document.head.removeChild(style)
+      // Debug: Check if canvas has any content
+      const ctx = canvas.getContext('2d')
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      let hasContent = false
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        if (imageData.data[i] !== 255 || imageData.data[i+1] !== 255 || imageData.data[i+2] !== 255) {
+          hasContent = true
+          break
+        }
+      }
+      console.log('Canvas has content:', hasContent)
+      
+      if (!hasContent) {
+        console.warn('Canvas appears to be blank! This will result in a blank PDF.')
+      }
       
       console.log('PDF created, initiating download...')
       
