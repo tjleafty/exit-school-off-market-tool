@@ -21,8 +21,8 @@ export default function CompanyManagementPage() {
   // Enrichment state
   const [savedCompanies, setSavedCompanies] = useState([])
   const [loadingSaved, setLoadingSaved] = useState(true)
-  const [enriching, setEnriching] = useState(null)
-  const [generatingReport, setGeneratingReport] = useState(null)
+  // Removed duplicate enriching state - using enrichingCompany instead
+  // Removed generatingReport state - not used in combined dashboard
   const [selectedSavedCompanies, setSelectedSavedCompanies] = useState(new Set())
   const [selectAllSavedChecked, setSelectAllSavedChecked] = useState(false)
   const [historicalCompanies, setHistoricalCompanies] = useState([])
@@ -946,10 +946,10 @@ export default function CompanyManagementPage() {
                                 {!company.is_enriched && (
                                   <button
                                     onClick={() => enrichCompany(company, false)}
-                                    disabled={enriching === company.id}
+                                    disabled={enrichingCompany === company.id}
                                     className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50"
                                   >
-                                    {enriching === company.id ? 'Enriching...' : 'Enrich Data'}
+                                    {enrichingCompany === company.id ? 'Enriching...' : 'Enrich Data'}
                                   </button>
                                 )}
                                 <button
