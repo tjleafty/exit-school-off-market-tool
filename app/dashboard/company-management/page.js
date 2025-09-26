@@ -196,7 +196,7 @@ export default function CompanyManagementPage() {
           industry: place.types?.[0]?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Business',
           website: place.website,
           phone: place.formatted_phone_number,
-          is_enriched: !!place.website,
+          is_enriched: false, // Companies from search are not enriched yet
           geometry: place.geometry,
           place_id: place.place_id
         }))
@@ -873,6 +873,36 @@ export default function CompanyManagementPage() {
                           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           📊 Export Selected ({selectedSavedCompanies.size})
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const selectedCompanies = savedCompanies.filter(c =>
+                              selectedSavedCompanies.has(c.id) && !c.is_enriched
+                            );
+
+                            if (selectedCompanies.length === 0) {
+                              alert('No non-enriched companies selected for enrichment.');
+                              return;
+                            }
+
+                            if (!confirm(`Enrich ${selectedCompanies.length} selected companies?`)) {
+                              return;
+                            }
+
+                            for (const company of selectedCompanies) {
+                              await enrichCompany(company, false);
+                              // Add delay to avoid rate limiting
+                              await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                          }}
+                          disabled={
+                            selectedSavedCompanies.size === 0 ||
+                            enrichingCompany !== null ||
+                            savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c.is_enriched).length === 0
+                          }
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          🔍 Enrich Selected ({savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c.is_enriched).length})
                         </button>
                       </>
                     )}
