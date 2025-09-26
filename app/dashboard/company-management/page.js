@@ -413,6 +413,14 @@ export default function CompanyManagementPage() {
             prev.map(c => c.id === company.id ? result.data : c)
           )
         }
+
+        // Update modal if the enriched company is currently being viewed
+        if (selectedCompanyDetails &&
+            ((selectedCompanyDetails.place_id === company.place_id) ||
+             (selectedCompanyDetails.id === company.id))) {
+          setSelectedCompanyDetails({ ...selectedCompanyDetails, is_enriched: true, ...result.data })
+        }
+
         alert('Company data enriched successfully!')
       } else {
         console.error('Enrichment failed:', result.error)
@@ -1086,7 +1094,60 @@ export default function CompanyManagementPage() {
                 >
                   Close
                 </button>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap gap-2">
+                  {/* Enrichment Button */}
+                  {!selectedCompanyDetails.is_enriched && (
+                    <button
+                      onClick={() => {
+                        const isFromSearch = !selectedCompanyDetails.created_at; // If no created_at, it's from search results
+                        enrichCompany(selectedCompanyDetails, isFromSearch);
+                      }}
+                      disabled={enrichingCompany === (selectedCompanyDetails.place_id || selectedCompanyDetails.id)}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {enrichingCompany === (selectedCompanyDetails.place_id || selectedCompanyDetails.id) ? 'Enriching...' : '🔍 Enrich Data'}
+                    </button>
+                  )}
+
+                  {/* Export Button */}
+                  <button
+                    onClick={() => {
+                      // Create CSV export for single company
+                      const headers = ['Name', 'Address', 'City', 'State', 'Industry', 'Phone', 'Website', 'Email', 'Google Rating', 'Review Count', 'Google Listing'];
+                      const company = selectedCompanyDetails;
+                      const csvContent = [
+                        headers.join(','),
+                        [
+                          `"${company.name || ''}"`,
+                          `"${company.formatted_address || company.address || company.location || ''}"`,
+                          `"${company.city || ''}"`,
+                          `"${company.state || ''}"`,
+                          `"${company.industry || ''}"`,
+                          `"${company.phone || company.formatted_phone_number || ''}"`,
+                          `"${company.website || ''}"`,
+                          `"${company.email || ''}"`,
+                          company.rating ? company.rating.toFixed(1) : '',
+                          company.user_ratings_total || '',
+                          company.place_id ? `"${getGoogleListingUrl(company.place_id)}"` : ''
+                        ].join(',')
+                      ].join('\n');
+
+                      // Create download
+                      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                      const link = document.createElement('a');
+                      const url = URL.createObjectURL(blob);
+                      link.setAttribute('href', url);
+                      link.setAttribute('download', `${company.name.replace(/[^a-zA-Z0-9]/g, '-')}-details.csv`);
+                      link.style.visibility = 'hidden';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    📊 Export CSV
+                  </button>
+
                   {selectedCompanyDetails.website && (
                     <a
                       href={selectedCompanyDetails.website}
@@ -1094,7 +1155,7 @@ export default function CompanyManagementPage() {
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      Visit Website
+                      🌐 Visit Website
                     </a>
                   )}
                   {selectedCompanyDetails.place_id && (
