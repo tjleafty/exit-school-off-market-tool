@@ -2,27 +2,38 @@ import { NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
+  console.log('Enrichment API called at:', new Date().toISOString())
+
   try {
     const body = await request.json()
+    console.log('Request body received:', JSON.stringify(body, null, 2))
+
     const { companyId, companyData } = body
 
     if (!companyId && !companyData) {
+      console.error('Missing required parameters:', { companyId, companyData })
       return NextResponse.json(
         { error: 'Company ID or data is required' },
         { status: 400 }
       )
     }
 
+    console.log('Processing enrichment for:', companyId ? `ID: ${companyId}` : `Data: ${companyData?.name}`)
+
     // If we have company data from Google Places, enrich it
     let enrichedData = companyData || {}
 
     // Step 1: Get more details from Google Places if we have a place_id
+    console.log('Step 1: Google Places enrichment')
     if (companyData?.place_id) {
+      console.log('Place ID found:', companyData.place_id)
       const apiKey = process.env.GOOGLE_PLACES_API_KEY
-      
+
       if (apiKey) {
+        console.log('Google Places API key available, fetching details')
         try {
           const detailsParams = new URLSearchParams({
             place_id: companyData.place_id,
@@ -34,9 +45,15 @@ export async function POST(request) {
             `https://maps.googleapis.com/maps/api/place/details/json?${detailsParams.toString()}`
           )
 
+          if (!detailsResponse.ok) {
+            throw new Error(`HTTP error! status: ${detailsResponse.status}`)
+          }
+
           const detailsData = await detailsResponse.json()
-          
+          console.log('Google Places API response status:', detailsData.status)
+
           if (detailsData.status === 'OK' && detailsData.result) {
+            console.log('Google Places data enriched successfully')
             enrichedData = {
               ...enrichedData,
               ...detailsData.result,
@@ -46,6 +63,8 @@ export async function POST(request) {
               total_reviews: detailsData.result.user_ratings_total,
               opening_hours: detailsData.result.current_opening_hours?.weekday_text
             }
+          } else {
+            console.warn('Google Places API returned non-OK status:', detailsData.status, detailsData.error_message)
           }
         } catch (error) {
           console.error('Error fetching place details:', error)
@@ -54,10 +73,13 @@ export async function POST(request) {
     }
 
     // Step 2: Advanced email finding with Hunter.io
+    console.log('Step 2: Email enrichment with Hunter.io')
     if (enrichedData.website && !enrichedData.email) {
+      console.log('Website found, attempting email enrichment:', enrichedData.website)
       try {
         const hunterData = await fetchFromHunter(enrichedData.website)
         if (hunterData.owner_email) {
+          console.log('Hunter.io email found:', hunterData.owner_email)
           enrichedData.email = hunterData.owner_email
           enrichedData.owner_name = hunterData.owner_name
           enrichedData.email_confidence = 'high'
@@ -67,39 +89,53 @@ export async function POST(request) {
           const domain = new URL(enrichedData.website).hostname.replace('www.', '')
           enrichedData.email = `contact@${domain}`
           enrichedData.email_confidence = 'low'
+          console.log('Hunter.io no results, using fallback email:', enrichedData.email)
         }
       } catch (error) {
         console.warn('Hunter.io enrichment failed:', error.message)
         // Fallback to domain-based email
-        const domain = new URL(enrichedData.website).hostname.replace('www.', '')
-        enrichedData.email = `contact@${domain}`
-        enrichedData.email_confidence = 'low'
+        try {
+          const domain = new URL(enrichedData.website).hostname.replace('www.', '')
+          enrichedData.email = `contact@${domain}`
+          enrichedData.email_confidence = 'low'
+          console.log('Using fallback email due to Hunter error:', enrichedData.email)
+        } catch (urlError) {
+          console.error('Failed to parse website URL for fallback email:', urlError.message)
+        }
       }
+    } else {
+      console.log('Skipping email enrichment:', !enrichedData.website ? 'No website' : 'Email already exists')
     }
 
     // Step 3: Apollo.io enrichment for company data
+    console.log('Step 3: Apollo.io enrichment')
     try {
       const apolloData = await fetchFromApollo(enrichedData)
-      
+      console.log('Apollo.io response received:', apolloData)
+
       // Only set employee data if we got actual numbers (not "Data not verified")
       if (apolloData.employee_count && apolloData.employee_count !== 'Data not verified') {
         enrichedData.employee_count = apolloData.employee_count
         enrichedData.employees_range = getEmployeeRange(apolloData.employee_count)
+        console.log('Apollo employee data added:', apolloData.employee_count)
       } else {
         enrichedData.employee_count = 'Data not verified'
         enrichedData.employees_range = 'Data not verified'
+        console.log('Apollo employee data not available')
       }
-      
+
       // Only set revenue data if we got actual numbers (not "Data not verified")
       if (apolloData.revenue && apolloData.revenue !== 'Data not verified') {
         enrichedData.revenue = apolloData.revenue
         enrichedData.revenue_range = getRevenueRange(apolloData.revenue)
+        console.log('Apollo revenue data added:', apolloData.revenue)
       } else {
         enrichedData.revenue = 'Data not verified'
         enrichedData.revenue_range = 'Data not verified'
+        console.log('Apollo revenue data not available')
       }
     } catch (error) {
-      console.warn('Apollo enrichment failed:', error.message)
+      console.error('Apollo enrichment failed:', error.message)
       // Set fallback values when enrichment fails
       enrichedData.employee_count = 'Data not verified'
       enrichedData.employees_range = 'Data not verified'
@@ -122,10 +158,13 @@ export async function POST(request) {
     enrichedData.is_enriched = true
 
     // Step 5: Save to database
+    console.log('Step 5: Saving to database')
     if (companyId) {
+      console.log('Updating existing company with ID:', companyId)
       // Update existing company - filter out fields that might not exist in schema
       const safeUpdateData = filterValidColumns(enrichedData)
-      
+      console.log('Filtered data for update:', Object.keys(safeUpdateData))
+
       const { data, error } = await supabase
         .from('companies')
         .update({
@@ -137,7 +176,8 @@ export async function POST(request) {
         .single()
 
       if (error) {
-        console.error('Database error:', error)
+        console.error('Database update error:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
         
         // If table doesn't exist, provide helpful error message
         if (error.message?.includes('relation "companies" does not exist')) {
@@ -189,15 +229,18 @@ export async function POST(request) {
         throw error
       }
       
+      console.log('Database update successful:', data?.name || 'Company')
       return NextResponse.json({
         success: true,
         message: 'Company data enriched successfully',
         data
       })
     } else {
+      console.log('Inserting new company:', enrichedData.name)
       // Insert new company - filter out fields that might not exist in schema
       const safeInsertData = filterValidColumns(enrichedData)
-      
+      console.log('Filtered data for insert:', Object.keys(safeInsertData))
+
       const { data, error } = await supabase
         .from('companies')
         .insert([{
@@ -209,7 +252,8 @@ export async function POST(request) {
         .single()
 
       if (error) {
-        console.error('Database error:', error)
+        console.error('Database insert error:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
         
         // If table doesn't exist, provide helpful error message
         if (error.message?.includes('relation "companies" does not exist')) {
@@ -261,6 +305,7 @@ export async function POST(request) {
         throw error
       }
       
+      console.log('Database insert successful:', data?.name || 'Company')
       return NextResponse.json({
         success: true,
         message: 'Company added and enriched successfully',
@@ -269,10 +314,17 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error('Enrichment error:', error)
+    console.error('Enrichment process failed:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error name:', error.name)
+    console.error('Error message:', error.message)
+
+    // Return detailed error information for debugging
     return NextResponse.json(
-      { 
-        error: error instanceof Error ? error.message : 'Failed to enrich company data'
+      {
+        error: error instanceof Error ? error.message : 'Failed to enrich company data',
+        errorType: error.name,
+        timestamp: new Date().toISOString()
       },
       { status: 500 }
     )

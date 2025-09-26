@@ -158,13 +158,22 @@ function generateCSV(companies, exportDate) {
     rowData.push(escapeCSV(company.employee_count ? company.employee_count.toString() : 'Unknown'))
     
     // Column 13: Company Size Range
-    rowData.push(escapeCSV(company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'))
+    const employeeRange = company.employees_range === 'Data not verified' 
+      ? 'Data not verified' 
+      : company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available'
+    rowData.push(escapeCSV(employeeRange))
     
     // Column 14: Annual Revenue (no commas for CSV compatibility)
-    rowData.push(escapeCSV(company.revenue ? `$${company.revenue}` : 'Not Available'))
+    const revenue = company.revenue === 'Data not verified' 
+      ? 'Data not verified' 
+      : company.revenue ? `$${company.revenue}` : 'Not Available'
+    rowData.push(escapeCSV(revenue))
     
     // Column 15: Revenue Range
-    rowData.push(escapeCSV(company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'))
+    const revenueRange = company.revenue_range === 'Data not verified' 
+      ? 'Data not verified' 
+      : company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available'
+    rowData.push(escapeCSV(revenueRange))
     
     // Column 16: Google Rating
     rowData.push(escapeCSV(company.rating ? `${company.rating}/5.0` : 'No Rating'))

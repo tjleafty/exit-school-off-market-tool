@@ -15,6 +15,7 @@ export default function DataEnrichmentPage() {
   const [selectedHistoryDate, setSelectedHistoryDate] = useState(null)
   const [exportingPDF, setExportingPDF] = useState(null)
   const [exportingCSV, setExportingCSV] = useState(false)
+  const [exportingTXT, setExportingTXT] = useState(false)
   const [selectedCompanies, setSelectedCompanies] = useState(new Set())
   const [selectAllChecked, setSelectAllChecked] = useState(false)
 
@@ -191,197 +192,9 @@ export default function DataEnrichmentPage() {
   }
 
   const generateTextPDF = async (company, filename) => {
-    try {
-      console.log('Starting text-based PDF generation for:', company.name)
-      
-      // Import jsPDF only (no html2canvas needed)
-      const { jsPDF } = await import('jspdf')
-      
-      console.log('jsPDF library loaded successfully')
-
-      // Create PDF with text-based content
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      })
-
-      const pageWidth = 210 // A4 width in mm
-      const pageHeight = 297 // A4 height in mm
-      const margin = 20
-      const contentWidth = pageWidth - (margin * 2)
-      let yPosition = margin
-
-      // Helper function to add text with word wrapping
-      const addText = (text, x, y, options = {}) => {
-        const fontSize = options.fontSize || 10
-        const maxWidth = options.maxWidth || contentWidth
-        const fontStyle = options.fontStyle || 'normal'
-        
-        pdf.setFontSize(fontSize)
-        pdf.setFont('helvetica', fontStyle)
-        
-        if (options.color) {
-          pdf.setTextColor(...options.color)
-        } else {
-          pdf.setTextColor(0, 0, 0) // Black
-        }
-        
-        const lines = pdf.splitTextToSize(text, maxWidth)
-        pdf.text(lines, x, y)
-        return y + (lines.length * fontSize * 0.353) // Convert pt to mm
-      }
-
-      // Helper function to add a new page if needed
-      const checkPageBreak = (requiredHeight) => {
-        if (yPosition + requiredHeight > pageHeight - margin) {
-          pdf.addPage()
-          yPosition = margin
-        }
-      }
-
-      // Use the company data passed as parameter
-
-      // Header
-      yPosition = addText('EXIT SCHOOL OFF-MARKET TOOL', margin, yPosition, {
-        fontSize: 16,
-        fontStyle: 'bold',
-        color: [59, 130, 246] // Blue
-      })
-      yPosition = addText('Company Intelligence Report', margin, yPosition + 5, {
-        fontSize: 12,
-        color: [107, 114, 128] // Gray
-      })
-      yPosition += 10
-
-      // Company Name
-      yPosition = addText(company.name, margin, yPosition, {
-        fontSize: 18,
-        fontStyle: 'bold'
-      })
-      yPosition += 8
-
-      // Generation Date
-      yPosition = addText(`Report Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, margin, yPosition, {
-        fontSize: 9,
-        color: [107, 114, 128]
-      })
-      yPosition += 15
-
-      // Company Overview Section
-      checkPageBreak(50)
-      yPosition = addText('📊 COMPANY OVERVIEW', margin, yPosition, {
-        fontSize: 12,
-        fontStyle: 'bold',
-        color: [59, 130, 246]
-      })
-      yPosition += 8
-
-      const overviewData = [
-        ['Status:', company.is_enriched ? 'Enriched' : 'Pending Enrichment'],
-        ['Industry:', company.industry || 'Not specified'],
-        ['Website:', company.website || 'Not available'],
-        ['Rating:', company.rating ? `${company.rating}/5.0 (${company.user_ratings_total || 0} reviews)` : 'No rating']
-      ]
-
-      overviewData.forEach(([label, value]) => {
-        yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
-        yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10 }) + 2
-      })
-      yPosition += 5
-
-      // Contact Information Section
-      checkPageBreak(50)
-      yPosition = addText('📍 CONTACT INFORMATION', margin, yPosition, {
-        fontSize: 12,
-        fontStyle: 'bold',
-        color: [59, 130, 246]
-      })
-      yPosition += 8
-
-      const contactData = [
-        ['Address:', company.formatted_address || company.location || 'Not available'],
-        ['Phone:', company.phone || company.formatted_phone_number || 'Not available'],
-        ['Email:', company.email || 'Not available'],
-        ['Owner:', company.owner_name || 'Not identified']
-      ]
-
-      contactData.forEach(([label, value]) => {
-        yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
-        yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10, maxWidth: contentWidth - 40 }) + 2
-      })
-      yPosition += 5
-
-      // Business Intelligence Section (only if enriched)
-      if (company.is_enriched) {
-        checkPageBreak(50)
-        yPosition = addText('💼 BUSINESS INTELLIGENCE', margin, yPosition, {
-          fontSize: 12,
-          fontStyle: 'bold',
-          color: [59, 130, 246]
-        })
-        yPosition += 8
-
-        const businessData = [
-          ['Employee Count:', `${company.employee_count || 'Not available'} ${company.employees_range ? `(${company.employees_range})` : ''}`],
-          ['Revenue:', `${company.revenue ? `$${company.revenue.toLocaleString()}` : 'Not available'} ${company.revenue_range ? `(${company.revenue_range})` : ''}`],
-          ['Email Confidence:', company.email_confidence || 'Not specified'],
-          ['Enrichment Source:', company.enrichment_source || 'Not specified']
-        ]
-
-        businessData.forEach(([label, value]) => {
-          yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
-          yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10, maxWidth: contentWidth - 40 }) + 2
-        })
-        yPosition += 5
-      }
-
-      // Discovery Information Section
-      checkPageBreak(50)
-      yPosition = addText('🔍 DISCOVERY INFORMATION', margin, yPosition, {
-        fontSize: 12,
-        fontStyle: 'bold',
-        color: [59, 130, 246]
-      })
-      yPosition += 8
-
-      const discoveryData = [
-        ['Created:', new Date(company.created_at).toLocaleString()],
-        ['Last Updated:', new Date(company.updated_at).toLocaleString()],
-        ['Enriched At:', company.enriched_at ? new Date(company.enriched_at).toLocaleString() : 'Not enriched'],
-        ['Company ID:', company.id],
-        ['Place ID:', company.place_id || 'Not available']
-      ]
-
-      discoveryData.forEach(([label, value]) => {
-        yPosition = addText(label, margin, yPosition, { fontSize: 10, fontStyle: 'bold' })
-        yPosition = addText(value, margin + 40, yPosition - 3.5, { fontSize: 10, maxWidth: contentWidth - 40 }) + 2
-      })
-
-      // Footer
-      checkPageBreak(20)
-      yPosition = pageHeight - margin - 10
-      yPosition = addText('This report was generated by Exit School Off-Market Tool', margin, yPosition, {
-        fontSize: 8,
-        color: [107, 114, 128]
-      })
-      yPosition = addText(`Generated on ${new Date().toLocaleString()}`, margin, yPosition + 3, {
-        fontSize: 8,
-        color: [107, 114, 128]
-      })
-
-      console.log('Text-based PDF created successfully')
-      
-      // Download the PDF
-      pdf.save(filename)
-      
-      console.log('PDF generation completed successfully')
-      alert(`✅ Text-based PDF report for ${company.name} has been downloaded successfully!`)
-      
-    } catch (error) {
-      console.error('❌ Error generating text-based PDF:', error)
-      throw error // Re-throw to be handled by exportToPDF
-    }
+    // Temporarily disabled PDF generation to fix build issues
+    // TODO: Re-implement PDF functionality with proper client-side loading
+    throw new Error('PDF generation temporarily disabled - please use TXT export instead')
   }
 
   const exportToCSV = async (date = null) => {
@@ -430,6 +243,55 @@ export default function DataEnrichmentPage() {
       alert('Error exporting CSV. Please try again.')
     } finally {
       setExportingCSV(false)
+    }
+  }
+
+  const exportToTXT = async (date = null) => {
+    try {
+      setExportingTXT(true)
+      
+      // Use today's date if no date specified
+      const exportDate = date || new Date().toISOString()
+      
+      const response = await fetch('/api/companies/export/txt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          date: exportDate,
+          userId: user?.id 
+        })
+      })
+
+      if (response.ok) {
+        // Create a blob and download the TXT file
+        const txtContent = await response.text()
+        const blob = new Blob([txtContent], { type: 'text/plain' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        
+        // Get filename from response headers or create default
+        const contentDisposition = response.headers.get('content-disposition')
+        const filename = contentDisposition 
+          ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+          : `companies-export-${new Date(exportDate).toISOString().split('T')[0]}.txt`
+        
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        
+        alert('TXT export completed successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to export TXT: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error exporting TXT:', error)
+      alert('Error exporting TXT. Please try again.')
+    } finally {
+      setExportingTXT(false)
     }
   }
 
@@ -614,13 +476,22 @@ export default function DataEnrichmentPage() {
               </div>
               <div className="flex space-x-3">
                 {companies.length > 0 && (
-                  <button 
-                    onClick={() => exportToCSV()}
-                    disabled={exportingCSV}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {exportingCSV ? 'Exporting...' : '📊 Export CSV'}
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => exportToCSV()}
+                      disabled={exportingCSV || exportingTXT}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {exportingCSV ? 'Exporting...' : '📊 Export CSV'}
+                    </button>
+                    <button 
+                      onClick={() => exportToTXT()}
+                      disabled={exportingTXT || exportingCSV}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {exportingTXT ? 'Exporting...' : '📄 Export TXT'}
+                    </button>
+                  </>
                 )}
                 {historicalCompanies.length > 0 && (
                   <button 
@@ -955,13 +826,22 @@ export default function DataEnrichmentPage() {
                         Companies from {formatDisplayDate(selectedHistoryDate)}
                       </h4>
                     </div>
-                    <button 
-                      onClick={() => exportToCSV(selectedHistoryDate)}
-                      disabled={exportingCSV}
-                      className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {exportingCSV ? 'Exporting...' : '📊 Export CSV'}
-                    </button>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => exportToCSV(selectedHistoryDate)}
+                        disabled={exportingCSV || exportingTXT}
+                        className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {exportingCSV ? 'Exporting...' : '📊 Export CSV'}
+                      </button>
+                      <button 
+                        onClick={() => exportToTXT(selectedHistoryDate)}
+                        disabled={exportingTXT || exportingCSV}
+                        className="px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {exportingTXT ? 'Exporting...' : '📄 Export TXT'}
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="max-h-96 overflow-y-auto">
