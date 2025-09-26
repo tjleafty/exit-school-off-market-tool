@@ -8,8 +8,18 @@ export async function POST(request) {
   console.log('Enrichment API called at:', new Date().toISOString())
 
   try {
+    console.log('Parsing request body...')
     const body = await request.json()
     console.log('Request body received:', JSON.stringify(body, null, 2))
+
+    // Add basic validation logging
+    if (!body) {
+      console.error('No request body received')
+      return NextResponse.json(
+        { error: 'No request body provided', timestamp: new Date().toISOString() },
+        { status: 400 }
+      )
+    }
 
     const { companyId, companyData } = body
 
@@ -319,12 +329,26 @@ export async function POST(request) {
     console.error('Error name:', error.name)
     console.error('Error message:', error.message)
 
+    // Check if this is a JSON parsing error
+    if (error.message && error.message.includes('JSON')) {
+      console.error('JSON parsing error - request body might be malformed')
+      return NextResponse.json(
+        {
+          error: 'Invalid request format - JSON parsing failed',
+          errorType: 'JSONParseError',
+          timestamp: new Date().toISOString()
+        },
+        { status: 400 }
+      )
+    }
+
     // Return detailed error information for debugging
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Failed to enrich company data',
-        errorType: error.name,
-        timestamp: new Date().toISOString()
+        errorType: error.name || 'UnknownError',
+        timestamp: new Date().toISOString(),
+        errorDetails: error.stack
       },
       { status: 500 }
     )
