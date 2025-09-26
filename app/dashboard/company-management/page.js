@@ -1061,11 +1061,18 @@ export default function CompanyManagementPage() {
                   <div>
                     <h4 className="font-semibold text-gray-700 mb-2">Categories</h4>
                     <div className="flex flex-wrap gap-1">
-                      {selectedCompanyDetails.types.map((type, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                          {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                      ))}
+                      {(() => {
+                        // Handle both array (from search results) and string (from saved companies)
+                        const typesArray = Array.isArray(selectedCompanyDetails.types)
+                          ? selectedCompanyDetails.types
+                          : selectedCompanyDetails.types.split(', ').filter(Boolean);
+
+                        return typesArray.map((type, index) => (
+                          <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                            {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
