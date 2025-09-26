@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase'
 
+export const runtime = 'nodejs'
+
 export async function POST(request) {
   try {
     const body = await request.json()
@@ -78,16 +80,31 @@ export async function POST(request) {
     // Step 3: Apollo.io enrichment for company data
     try {
       const apolloData = await fetchFromApollo(enrichedData)
-      if (apolloData.employee_count) {
+      
+      // Only set employee data if we got actual numbers (not "Data not verified")
+      if (apolloData.employee_count && apolloData.employee_count !== 'Data not verified') {
         enrichedData.employee_count = apolloData.employee_count
         enrichedData.employees_range = getEmployeeRange(apolloData.employee_count)
+      } else {
+        enrichedData.employee_count = 'Data not verified'
+        enrichedData.employees_range = 'Data not verified'
       }
-      if (apolloData.revenue) {
+      
+      // Only set revenue data if we got actual numbers (not "Data not verified")
+      if (apolloData.revenue && apolloData.revenue !== 'Data not verified') {
         enrichedData.revenue = apolloData.revenue
         enrichedData.revenue_range = getRevenueRange(apolloData.revenue)
+      } else {
+        enrichedData.revenue = 'Data not verified'
+        enrichedData.revenue_range = 'Data not verified'
       }
     } catch (error) {
       console.warn('Apollo enrichment failed:', error.message)
+      // Set fallback values when enrichment fails
+      enrichedData.employee_count = 'Data not verified'
+      enrichedData.employees_range = 'Data not verified'
+      enrichedData.revenue = 'Data not verified'
+      enrichedData.revenue_range = 'Data not verified'
     }
 
     // Step 4: Enrich with industry classification
@@ -370,14 +387,48 @@ async function fetchFromHunter(website) {
 }
 
 async function fetchFromApollo(company) {
-  // Apollo API integration would go here
-  // For now, return mock data based on company characteristics
-  const mockEmployeeCount = Math.floor(Math.random() * 200) + 10
-  const mockRevenue = mockEmployeeCount * 100000 // Rough estimate
+  const apiKey = process.env.APOLLO_API_KEY
   
-  return {
-    employee_count: mockEmployeeCount,
-    revenue: mockRevenue
+  if (!apiKey) {
+    console.warn('Apollo API key not found in environment variables')
+    return {
+      employee_count: 'Data not verified',
+      revenue: 'Data not verified',
+      employees_range: 'Data not verified',
+      revenue_range: 'Data not verified'
+    }
+  }
+
+  try {
+    // TODO: Implement actual Apollo API integration when API key is available
+    // Example Apollo API call structure:
+    // const response = await fetch('https://api.apollo.io/v1/organizations/search', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //     'X-Api-Key': apiKey
+    //   },
+    //   body: JSON.stringify({
+    //     name: company.name,
+    //     website_url: company.website
+    //   })
+    // })
+    
+    console.log('Apollo API integration not yet implemented - returning placeholder data')
+    return {
+      employee_count: 'Data not verified',
+      revenue: 'Data not verified',
+      employees_range: 'Data not verified',
+      revenue_range: 'Data not verified'
+    }
+  } catch (error) {
+    console.error('Apollo API call failed:', error)
+    return {
+      employee_count: 'Data not verified',
+      revenue: 'Data not verified',
+      employees_range: 'Data not verified',
+      revenue_range: 'Data not verified'
+    }
   }
 }
 

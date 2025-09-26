@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET(request) {
   try {
     console.log('=== ADMIN USER ACTIVITY API ===')
     
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    const url = new URL(request.url)
+    const userId = url.searchParams.get('userId')
     
     if (!userId) {
       return NextResponse.json(
