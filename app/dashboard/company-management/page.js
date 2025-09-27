@@ -744,11 +744,11 @@ export default function CompanyManagementPage() {
                                 </button>
                                 <button
                                   onClick={() => enrichCompany(company, true)}
-                                  disabled={enrichingCompany === (company.place_id || company.id) || company.is_enriched}
+                                  disabled={enrichingCompany === (company.place_id || company.id) || company?.is_enriched}
                                   className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   {enrichingCompany === (company.place_id || company.id) ? 'Enriching...' :
-                                   company.is_enriched ? 'Enriched' : 'Enrich Data'}
+                                   company?.is_enriched ? 'Enriched' : 'Enrich Data'}
                                 </button>
                               </div>
                             </div>
@@ -814,7 +814,7 @@ export default function CompanyManagementPage() {
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">Enriched</dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            {savedCompanies.filter(c => c.is_enriched).length}
+                            {savedCompanies.filter(c => c?.is_enriched).length}
                           </dd>
                         </dl>
                       </div>
@@ -832,7 +832,7 @@ export default function CompanyManagementPage() {
                         <dl>
                           <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
                           <dd className="text-lg font-medium text-gray-900">
-                            {savedCompanies.filter(c => !c.is_enriched).length}
+                            {savedCompanies.filter(c => !c?.is_enriched).length}
                           </dd>
                         </dl>
                       </div>
@@ -877,7 +877,7 @@ export default function CompanyManagementPage() {
                         <button
                           onClick={async () => {
                             const selectedCompanies = savedCompanies.filter(c =>
-                              selectedSavedCompanies.has(c.id) && !c.is_enriched
+                              selectedSavedCompanies.has(c.id) && !c?.is_enriched
                             );
 
                             if (selectedCompanies.length === 0) {
@@ -898,11 +898,11 @@ export default function CompanyManagementPage() {
                           disabled={
                             selectedSavedCompanies.size === 0 ||
                             enrichingCompany !== null ||
-                            savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c.is_enriched).length === 0
+                            savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c?.is_enriched).length === 0
                           }
                           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          🔍 Enrich Selected ({savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c.is_enriched).length})
+                          🔍 Enrich Selected ({savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c?.is_enriched).length})
                         </button>
                       </>
                     )}
@@ -960,11 +960,11 @@ export default function CompanyManagementPage() {
                                 <div className="flex items-center">
                                   <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
                                   <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                                    company.is_enriched
+                                    company?.is_enriched
                                       ? 'bg-green-100 text-green-800'
                                       : 'bg-yellow-100 text-yellow-800'
                                   }`}>
-                                    {company.is_enriched ? 'Enriched' : 'Pending'}
+                                    {company?.is_enriched ? 'Enriched' : 'Pending'}
                                   </span>
                                 </div>
                                 <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
@@ -981,7 +981,7 @@ export default function CompanyManagementPage() {
                             </div>
                             <div className="flex flex-col space-y-2">
                               <div className="flex space-x-2">
-                                {!company.is_enriched && (
+                                {!company?.is_enriched && (
                                   <button
                                     onClick={() => enrichCompany(company, false)}
                                     disabled={enrichingCompany === company.id}
@@ -1082,8 +1082,8 @@ export default function CompanyManagementPage() {
                     <h4 className="font-semibold text-gray-700 mb-3">Business Details</h4>
                     <div className="space-y-2 text-sm">
                       <div><strong>Status:</strong>
-                        <span className={`ml-1 px-2 py-1 text-xs rounded ${selectedCompanyDetails.is_enriched ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {selectedCompanyDetails.is_enriched ? 'Enriched' : 'Basic Info Only'}
+                        <span className={`ml-1 px-2 py-1 text-xs rounded ${selectedCompanyDetails?.is_enriched ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {selectedCompanyDetails?.is_enriched ? 'Enriched' : 'Basic Info Only'}
                         </span>
                       </div>
                       <div><strong>Industry:</strong> {selectedCompanyDetails.industry || 'Not specified'}</div>
@@ -1126,7 +1126,7 @@ export default function CompanyManagementPage() {
                 </button>
                 <div className="flex flex-wrap gap-2">
                   {/* Enrichment Button */}
-                  {!selectedCompanyDetails.is_enriched && (
+                  {!selectedCompanyDetails?.is_enriched && (
                     <button
                       onClick={() => {
                         const isFromSearch = !selectedCompanyDetails.created_at; // If no created_at, it's from search results
