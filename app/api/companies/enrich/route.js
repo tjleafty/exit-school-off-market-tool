@@ -7,7 +7,17 @@ export const dynamic = 'force-dynamic'
 export async function POST(request) {
   console.log('Enrichment API called at:', new Date().toISOString())
 
+  // Test if basic response works
   try {
+    console.log('Starting enrichment API processing...')
+
+    // Test if we can return early
+    return NextResponse.json({
+      success: true,
+      message: 'Basic API test - early return',
+      timestamp: new Date().toISOString()
+    })
+
     console.log('Parsing request body...')
     const body = await request.json()
     console.log('Request body received:', JSON.stringify(body, null, 2))
