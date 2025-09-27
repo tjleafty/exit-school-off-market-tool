@@ -7,20 +7,54 @@ export const dynamic = 'force-dynamic'
 export async function POST(request) {
   console.log('Enrichment API called at:', new Date().toISOString())
 
-  // Test if basic response works
   try {
-    console.log('Starting enrichment API processing...')
+    console.log('Step 0: Parsing request body...')
+    const body = await request.json()
+    console.log('Step 0 complete: Request body received')
 
-    // Test if we can return early
+    const { companyId, companyData } = body
+
+    if (!companyId && !companyData) {
+      console.error('Missing required parameters:', { companyId, companyData })
+      return NextResponse.json(
+        { error: 'Company ID or data is required', timestamp: new Date().toISOString() },
+        { status: 400 }
+      )
+    }
+
+    console.log('Step 0.5: Processing enrichment for:', companyId ? `ID: ${companyId}` : `Data: ${companyData?.name}`)
+
+    // Start with minimal enrichment
+    let enrichedData = companyData || {}
+    console.log('Step 0.6: Initial data prepared')
+
+    // Test database connection first
+    console.log('Step 0.7: Testing database connection...')
+    const { data: testData, error: testError } = await supabase
+      .from('companies')
+      .select('count')
+      .limit(1)
+
+    if (testError) {
+      console.error('Database connection failed:', testError)
+      return NextResponse.json(
+        {
+          error: 'Database connection failed',
+          details: testError.message,
+          timestamp: new Date().toISOString()
+        },
+        { status: 500 }
+      )
+    }
+    console.log('Step 0.8: Database connection successful')
+
+    // Return success for now
     return NextResponse.json({
       success: true,
-      message: 'Basic API test - early return',
+      message: 'Enrichment test successful',
+      companyName: companyData?.name,
       timestamp: new Date().toISOString()
     })
-
-    console.log('Parsing request body...')
-    const body = await request.json()
-    console.log('Request body received:', JSON.stringify(body, null, 2))
 
     // Add basic validation logging
     if (!body) {
