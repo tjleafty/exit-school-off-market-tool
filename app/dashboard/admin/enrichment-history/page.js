@@ -26,11 +26,11 @@ export default function EnrichmentHistoryPage() {
 
   useEffect(() => {
     loadEnrichmentHistory()
-  }, [page, filterTier, filterStatus, filterUser, filterDateFrom, filterDateTo, searchCompany])
+  }, [page, filterTier, filterStatus, filterUser, filterDateFrom, filterDateTo, searchCompany]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadStats()
-  }, [statsPeriod])
+  }, [statsPeriod]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadEnrichmentHistory = async () => {
     try {

@@ -420,7 +420,7 @@ export default function EnrichmentConfigPage() {
                       <ol className="list-decimal list-inside space-y-1 ml-2">
                         <li>Go to your Supabase Dashboard → SQL Editor</li>
                         <li>Copy and paste the contents of <code className="bg-yellow-100 px-1 rounded">supabase/migrations/008_enrichment_fields_system.sql</code></li>
-                        <li>Click "Run" to execute the migration</li>
+                        <li>Click &quot;Run&quot; to execute the migration</li>
                         <li>Refresh this page</li>
                       </ol>
                       <p className="mt-3 pt-3 border-t border-yellow-300">
