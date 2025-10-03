@@ -92,9 +92,10 @@ export async function POST(request) {
       try {
         const zoomInfoData = await callZoomInfoAPI(company)
         enrichmentData.zoominfo_data = zoomInfoData
-        console.log('✓ ZoomInfo data retrieved')
+        console.log('✓ ZoomInfo data retrieved:', JSON.stringify(zoomInfoData, null, 2))
       } catch (error) {
         console.error('ZoomInfo API error:', error.message)
+        console.error('ZoomInfo error stack:', error.stack)
         enrichmentData.zoominfo_data = { error: error.message }
       }
     }
@@ -189,49 +190,65 @@ export async function POST(request) {
 
 // Helper function to call ZoomInfo API
 async function callZoomInfoAPI(company) {
+  console.log('callZoomInfoAPI: Starting for company:', company.name)
+
   // Get ZoomInfo API key from database
-  const { data: apiKeyData } = await supabase
+  const { data: apiKeyData, error: keyError } = await supabase
     .from('api_keys')
     .select('encrypted_key')
     .eq('service', 'zoominfo')
     .eq('status', 'Connected')
     .single()
 
+  console.log('API Key lookup result:', { hasKey: !!apiKeyData?.encrypted_key, error: keyError })
+
   if (!apiKeyData?.encrypted_key) {
     throw new Error('ZoomInfo API key not configured')
   }
 
   const apiKey = apiKeyData.encrypted_key
+  console.log('Using API key (first 10 chars):', apiKey.substring(0, 10) + '...')
 
   // Search for company by name and website
+  const requestBody = {
+    companyName: company.name,
+    websiteDomain: company.website ? new URL(company.website).hostname : undefined,
+    maxResults: 1
+  }
+  console.log('ZoomInfo company search request:', requestBody)
+
   const searchResponse = await fetch('https://api.zoominfo.com/search/company', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      companyName: company.name,
-      websiteDomain: company.website ? new URL(company.website).hostname : undefined,
-      maxResults: 1
-    })
+    body: JSON.stringify(requestBody)
   })
 
+  console.log('ZoomInfo company search response status:', searchResponse.status)
+
   if (!searchResponse.ok) {
-    throw new Error(`ZoomInfo API error: ${searchResponse.status}`)
+    const errorText = await searchResponse.text()
+    console.error('ZoomInfo API error response:', errorText)
+    throw new Error(`ZoomInfo API error: ${searchResponse.status} - ${errorText}`)
   }
 
   const searchData = await searchResponse.json()
+  console.log('ZoomInfo company search data:', JSON.stringify(searchData, null, 2))
 
   if (!searchData?.data || searchData.data.length === 0) {
+    console.log('No company found in ZoomInfo for:', company.name)
     return { message: 'No company found in ZoomInfo' }
   }
 
   const companyData = searchData.data[0]
+  console.log('Found company in ZoomInfo:', companyData.id, companyData.name)
 
   // Get contact information
   let contactData = null
   if (companyData.id) {
+    console.log('Fetching contact for company ID:', companyData.id)
     const contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
       method: 'POST',
       headers: {
@@ -245,17 +262,26 @@ async function callZoomInfoAPI(company) {
       })
     })
 
+    console.log('ZoomInfo contact search response status:', contactResponse.status)
+
     if (contactResponse.ok) {
       const contactJson = await contactResponse.json()
+      console.log('ZoomInfo contact data:', JSON.stringify(contactJson, null, 2))
       contactData = contactJson?.data?.[0] || null
+    } else {
+      const errorText = await contactResponse.text()
+      console.error('ZoomInfo contact API error:', errorText)
     }
   }
 
-  return {
+  const result = {
     company: companyData,
     contact: contactData,
     source: 'zoominfo'
   }
+
+  console.log('Returning ZoomInfo data with fields:', Object.keys(companyData))
+  return result
 }
 
 // Helper function to call Hunter.io API
