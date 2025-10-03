@@ -7,8 +7,14 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
   try {
+    console.log('=== CSV EXPORT API CALLED ===')
+    console.log('Runtime:', runtime)
+    console.log('Dynamic:', dynamic)
+
     const { date, userId } = await request.json()
-    
+
+    console.log('Export request:', { date, userId })
+
     if (!date) {
       return NextResponse.json(
         { error: 'Date is required' },
@@ -54,11 +60,16 @@ export async function POST(request) {
     }
 
     // Generate multi-sheet Excel file with separate sheets for each enrichment source
+    console.log('Generating multi-sheet Excel with', companies.length, 'companies')
     const excelBuffer = generateMultiSheetExcel(companies, targetDate)
+    console.log('Excel buffer generated, size:', excelBuffer.length, 'bytes')
 
     // Format filename with date
     const dateStr = targetDate.toISOString().split('T')[0] // YYYY-MM-DD format
     const filename = `companies-export-${dateStr}.xlsx`
+
+    console.log('Returning Excel file:', filename)
+    console.log('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     return new NextResponse(excelBuffer, {
       headers: {
