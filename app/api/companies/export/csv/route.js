@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { supabase } from '../../../../../lib/supabase'
 import * as XLSX from 'xlsx'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request) {
   try {
     const { date, userId } = await request.json()
