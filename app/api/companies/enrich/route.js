@@ -12,7 +12,7 @@ export async function POST(request) {
     const body = await request.json()
     console.log('Step 0 complete: Request body received')
 
-    const { companyId, companyData } = body
+    const { companyId, companyData, tier = 'BASIC' } = body
 
     if (!companyId && !companyData) {
       console.error('Missing required parameters:', { companyId, companyData })
@@ -22,37 +22,84 @@ export async function POST(request) {
       )
     }
 
-    console.log('Step 0.5: Processing enrichment for:', companyId ? `ID: ${companyId}` : `Data: ${companyData?.name}`)
+    console.log('Step 1: Processing enrichment for:', companyId ? `ID: ${companyId}` : `Data: ${companyData?.name}`)
 
-    // Start with minimal enrichment
-    let enrichedData = companyData || {}
-    console.log('Step 0.6: Initial data prepared')
+    // Get or create company record
+    let company
+    if (companyId) {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .single()
 
-    // Test database connection first
-    console.log('Step 0.7: Testing database connection...')
-    const { data: testData, error: testError } = await supabase
-      .from('companies')
-      .select('count')
-      .limit(1)
+      if (error) throw error
+      company = data
+    } else {
+      // Save company data first if it's new
+      const { data, error } = await supabase
+        .from('companies')
+        .upsert([{
+          place_id: companyData.place_id || `temp_${Date.now()}`,
+          name: companyData.name,
+          formatted_address: companyData.formatted_address || companyData.address,
+          location: companyData.location || companyData.formatted_address,
+          city: companyData.city,
+          state: companyData.state,
+          phone: companyData.phone,
+          website: companyData.website,
+          rating: companyData.rating,
+          user_ratings_total: companyData.user_ratings_total,
+          is_enriched: false
+        }], {
+          onConflict: 'place_id'
+        })
+        .select()
+        .single()
 
-    if (testError) {
-      console.error('Database connection failed:', testError)
-      return NextResponse.json(
-        {
-          error: 'Database connection failed',
-          details: testError.message,
-          timestamp: new Date().toISOString()
-        },
-        { status: 500 }
-      )
+      if (error) throw error
+      company = data
     }
-    console.log('Step 0.8: Database connection successful')
 
-    // Return success for now
+    console.log('Step 2: Calling ZoomInfo enrichment for company:', company.name)
+
+    // Call the advanced enrichment API with ZoomInfo fields
+    const enrichResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/enrich-company`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
+      },
+      body: JSON.stringify({
+        companyId: company.id,
+        providers: ['zoominfo', 'hunter', 'apollo']
+      })
+    })
+
+    if (!enrichResponse.ok) {
+      const errorText = await enrichResponse.text()
+      console.error('Enrichment function failed:', errorText)
+      throw new Error(`Enrichment failed: ${errorText}`)
+    }
+
+    const enrichResult = await enrichResponse.json()
+    console.log('Step 3: Enrichment complete')
+
+    // Update company with enriched status
+    const { data: updatedCompany, error: updateError } = await supabase
+      .from('companies')
+      .update({ is_enriched: true })
+      .eq('id', company.id)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
     return NextResponse.json({
       success: true,
-      message: 'Enrichment test successful',
-      companyName: companyData?.name,
+      message: 'Company enriched successfully',
+      data: updatedCompany,
+      enrichmentData: enrichResult,
       timestamp: new Date().toISOString()
     })
 
