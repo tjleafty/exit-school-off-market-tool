@@ -76,9 +76,10 @@ export async function POST(request) {
       enriched_at: new Date().toISOString()
     }
 
-    console.log('Step 3: Enrichment data generated:', Object.keys(enrichmentData).length, 'fields')
+    console.log('Step 3: Enrichment data generated:', JSON.stringify(enrichmentData))
 
     // Update company with enriched status and data
+    console.log('Step 3.5: Updating company with ID:', company.id)
     const { data: updatedCompany, error: updateError } = await supabase
       .from('companies')
       .update({
@@ -94,7 +95,8 @@ export async function POST(request) {
       throw updateError
     }
 
-    console.log('Step 4: Company updated successfully with enrichment data')
+    console.log('Step 4: Company updated successfully')
+    console.log('Step 4.1: Updated company enrichment_data:', JSON.stringify(updatedCompany.enrichment_data))
 
     return NextResponse.json({
       success: true,
