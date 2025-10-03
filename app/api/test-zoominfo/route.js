@@ -56,16 +56,23 @@ export async function GET() {
 
     let accessToken
     try {
-      accessToken = await authClient.getAccessTokenViaPKI(
+      const tokenResult = await authClient.getAccessTokenViaPKI(
         apiKeyData.username,
         apiKeyData.client_id,
         apiKeyData.encrypted_key
       )
 
+      console.log('JWT token result type:', typeof tokenResult)
+      console.log('JWT token result:', JSON.stringify(tokenResult).substring(0, 100))
+
+      // The library might return an object with the token, or just the token string
+      accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult.access_token || tokenResult.token || tokenResult
+
       results.tests.push({
         test: 'JWT Token Generation',
         success: true,
-        tokenPreview: accessToken.substring(0, 20) + '...',
+        tokenType: typeof tokenResult,
+        tokenPreview: typeof accessToken === 'string' ? accessToken.substring(0, 20) + '...' : 'Token is not a string',
         note: 'Successfully generated JWT token'
       })
     } catch (authError) {
@@ -73,6 +80,7 @@ export async function GET() {
         test: 'JWT Token Generation',
         success: false,
         error: authError.message,
+        stack: authError.stack,
         recommendation: 'Check that username, client_id, and private key are correct'
       })
       return NextResponse.json(results)
