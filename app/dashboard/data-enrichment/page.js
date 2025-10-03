@@ -214,26 +214,26 @@ export default function DataEnrichmentPage() {
       })
 
       if (response.ok) {
-        // Create a blob and download the CSV file
-        const csvContent = await response.text()
-        const blob = new Blob([csvContent], { type: 'text/csv' })
+        // Create a blob and download the Excel file
+        const excelBuffer = await response.arrayBuffer()
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        
+
         // Get filename from response headers or create default
         const contentDisposition = response.headers.get('content-disposition')
-        const filename = contentDisposition 
+        const filename = contentDisposition
           ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-          : `companies-export-${new Date(exportDate).toISOString().split('T')[0]}.csv`
-        
+          : `companies-export-${new Date(exportDate).toISOString().split('T')[0]}.xlsx`
+
         a.download = filename
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         window.URL.revokeObjectURL(url)
-        
-        alert('CSV export completed successfully!')
+
+        alert('Excel export completed successfully! The file includes separate sheets for each enrichment source.')
       } else {
         const error = await response.json()
         alert(`Failed to export CSV: ${error.error}`)
