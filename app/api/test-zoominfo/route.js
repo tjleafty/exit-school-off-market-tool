@@ -55,36 +55,39 @@ export async function GET() {
     const authClient = require('zoominfo-api-auth-client')
 
     let accessToken
-    try {
-      const tokenResult = await authClient.getAccessTokenViaPKI(
-        apiKeyData.username,
-        apiKeyData.client_id,
-        apiKeyData.encrypted_key
-      )
+    const tokenResult = await authClient.getAccessTokenViaPKI(
+      apiKeyData.username,
+      apiKeyData.client_id,
+      apiKeyData.encrypted_key
+    )
 
-      console.log('JWT token result type:', typeof tokenResult)
-      console.log('JWT token result:', JSON.stringify(tokenResult).substring(0, 100))
+    console.log('JWT token result type:', typeof tokenResult)
+    console.log('JWT token result:', tokenResult)
 
-      // The library might return an object with the token, or just the token string
-      accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult.access_token || tokenResult.token || tokenResult
-
-      results.tests.push({
-        test: 'JWT Token Generation',
-        success: true,
-        tokenType: typeof tokenResult,
-        tokenPreview: typeof accessToken === 'string' ? accessToken.substring(0, 20) + '...' : 'Token is not a string',
-        note: 'Successfully generated JWT token'
-      })
-    } catch (authError) {
+    // Check if the result is an error object (library returns error instead of throwing)
+    if (tokenResult && tokenResult.isAxiosError) {
+      const errorMsg = tokenResult.response?.data?.message || tokenResult.message || 'Authentication failed'
       results.tests.push({
         test: 'JWT Token Generation',
         success: false,
-        error: authError.message,
-        stack: authError.stack,
-        recommendation: 'Check that username, client_id, and private key are correct'
+        error: errorMsg,
+        status: tokenResult.response?.status,
+        statusText: tokenResult.response?.statusText,
+        responseData: tokenResult.response?.data,
+        recommendation: 'Check that username, client_id, and private key are correct in ZoomInfo Admin Portal'
       })
       return NextResponse.json(results)
     }
+
+    // Success - tokenResult should be the JWT string
+    accessToken = tokenResult
+
+    results.tests.push({
+      test: 'JWT Token Generation',
+      success: true,
+      tokenPreview: accessToken.substring(0, 20) + '...',
+      note: 'Successfully generated JWT token'
+    })
 
     // Test 3: Make actual API call to ZoomInfo
     console.log('Testing ZoomInfo API with JWT token...')

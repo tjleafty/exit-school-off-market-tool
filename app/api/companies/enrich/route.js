@@ -218,18 +218,19 @@ async function callZoomInfoAPI(company) {
   const authClient = require('zoominfo-api-auth-client')
   let accessToken
 
-  try {
-    console.log('Requesting JWT token from ZoomInfo...')
-    const tokenResult = await authClient.getAccessTokenViaPKI(username, client_id, privateKey)
+  console.log('Requesting JWT token from ZoomInfo...')
+  const tokenResult = await authClient.getAccessTokenViaPKI(username, client_id, privateKey)
 
-    // The library might return an object with the token, or just the token string
-    accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult.access_token || tokenResult.token || tokenResult
-
-    console.log('JWT token obtained successfully, type:', typeof accessToken)
-  } catch (authError) {
-    console.error('ZoomInfo JWT authentication failed:', authError)
-    throw new Error(`ZoomInfo JWT authentication failed: ${authError.message}`)
+  // Check if the result is an error object (library returns error instead of throwing)
+  if (tokenResult && tokenResult.isAxiosError) {
+    const errorMsg = tokenResult.response?.data?.message || tokenResult.message || 'Authentication failed'
+    console.error('ZoomInfo JWT authentication failed:', errorMsg)
+    throw new Error(`ZoomInfo JWT authentication failed: ${errorMsg}`)
   }
+
+  // Success - tokenResult should be the JWT string
+  accessToken = tokenResult
+  console.log('JWT token obtained successfully')
 
   // Search for company by name and website
   const requestBody = {
