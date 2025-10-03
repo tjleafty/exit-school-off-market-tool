@@ -404,9 +404,31 @@ export default function EnrichmentConfigPage() {
               <div className="px-6 py-12 text-center">
                 <div className="text-gray-400 text-6xl mb-4">🔍</div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Fields Found</h3>
-                <p className="text-gray-600">
-                  Try adjusting your filters or run the database migration to set up enrichment fields.
+                <p className="text-gray-600 mb-4">
+                  {fields.length === 0
+                    ? 'No enrichment fields are configured in the database.'
+                    : 'Try adjusting your filters to see fields.'}
                 </p>
+                {fields.length === 0 && (
+                  <div className="mt-6 max-w-2xl mx-auto bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-left">
+                    <h4 className="text-sm font-semibold text-yellow-900 mb-3">⚠️ Setup Required</h4>
+                    <p className="text-sm text-yellow-800 mb-3">
+                      The enrichment fields table is empty. You need to run the database migration to populate it with 65+ fields from the ZoomInfo data model.
+                    </p>
+                    <div className="text-sm text-yellow-800 space-y-2">
+                      <p className="font-semibold">To fix this:</p>
+                      <ol className="list-decimal list-inside space-y-1 ml-2">
+                        <li>Go to your Supabase Dashboard → SQL Editor</li>
+                        <li>Copy and paste the contents of <code className="bg-yellow-100 px-1 rounded">supabase/migrations/008_enrichment_fields_system.sql</code></li>
+                        <li>Click "Run" to execute the migration</li>
+                        <li>Refresh this page</li>
+                      </ol>
+                      <p className="mt-3 pt-3 border-t border-yellow-300">
+                        <strong>Expected result:</strong> 65 fields organized into 6 categories (Contact, Company, Financial, Firmographics, Location, Social)
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
