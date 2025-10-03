@@ -11,50 +11,76 @@ export async function POST(request) {
     console.log('Runtime:', runtime)
     console.log('Dynamic:', dynamic)
 
-    const { date, userId } = await request.json()
+    const { date, userId, companyIds } = await request.json()
 
-    console.log('Export request:', { date, userId })
+    console.log('Export request:', { date, userId, companyIds: companyIds?.length })
 
-    if (!date) {
-      return NextResponse.json(
-        { error: 'Date is required' },
-        { status: 400 }
-      )
-    }
+    let companies = []
+    let targetDate = new Date()
 
-    // Parse the date and get companies for that specific day
-    const targetDate = new Date(date)
-    const startOfDay = new Date(targetDate)
-    startOfDay.setHours(0, 0, 0, 0)
-    
-    const endOfDay = new Date(targetDate)
-    endOfDay.setHours(23, 59, 59, 999)
+    // If specific company IDs provided, fetch those
+    if (companyIds && companyIds.length > 0) {
+      console.log('Fetching specific companies by IDs:', companyIds.length)
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .in('id', companyIds)
 
-    let query = supabase
-      .from('companies')
-      .select('*')
-      .gte('created_at', startOfDay.toISOString())
-      .lte('created_at', endOfDay.toISOString())
-      .order('created_at', { ascending: true })
+      if (error) {
+        console.error('Database error:', error)
+        return NextResponse.json(
+          { error: 'Failed to fetch companies' },
+          { status: 500 }
+        )
+      }
 
-    // Filter by user if provided
-    if (userId) {
-      query = query.eq('user_id', userId)
-    }
+      companies = data || []
+      targetDate = new Date() // Use current date for filename
+    } else {
+      // Date-based export (original behavior)
+      if (!date) {
+        return NextResponse.json(
+          { error: 'Date or companyIds is required' },
+          { status: 400 }
+        )
+      }
 
-    const { data: companies, error } = await query
+      // Parse the date and get companies for that specific day
+      targetDate = new Date(date)
+      const startOfDay = new Date(targetDate)
+      startOfDay.setHours(0, 0, 0, 0)
 
-    if (error) {
-      console.error('Database error:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch companies' },
-        { status: 500 }
-      )
+      const endOfDay = new Date(targetDate)
+      endOfDay.setHours(23, 59, 59, 999)
+
+      let query = supabase
+        .from('companies')
+        .select('*')
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString())
+        .order('created_at', { ascending: true })
+
+      // Filter by user if provided
+      if (userId) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error('Database error:', error)
+        return NextResponse.json(
+          { error: 'Failed to fetch companies' },
+          { status: 500 }
+        )
+      }
+
+      companies = data || []
     }
 
     if (!companies || companies.length === 0) {
       return NextResponse.json(
-        { error: 'No companies found for the specified date' },
+        { error: 'No companies found' },
         { status: 404 }
       )
     }

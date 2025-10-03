@@ -447,7 +447,7 @@ export default function CompanyManagementPage() {
     }
   }
 
-  const exportSelected = (isFromSearch = true) => {
+  const exportSelected = async (isFromSearch = true) => {
     const selectedData = isFromSearch
       ? searchResults.filter(company => selectedSearchCompanies.includes(company.id))
       : savedCompanies.filter(company => selectedSavedCompanies.has(company.id))
@@ -457,36 +457,52 @@ export default function CompanyManagementPage() {
       return
     }
 
-    // Convert to CSV
-    const headers = ['Name', 'Address', 'City', 'State', 'Industry', 'Phone', 'Website', 'Google Rating', 'Review Count', 'Google Listing']
-    const csvContent = [
-      headers.join(','),
-      ...selectedData.map(company => [
-        `"${company.name || ''}"`,
-        `"${company.address || company.location || ''}"`,
-        `"${company.city || ''}"`,
-        `"${company.state || ''}"`,
-        `"${company.industry || ''}"`,
-        `"${company.phone || company.formatted_phone_number || ''}"`,
-        `"${company.website || ''}"`,
-        company.rating ? company.rating.toFixed(1) : '',
-        company.user_ratings_total || '',
-        company.place_id ? `"${getGoogleListingUrl(company.place_id)}"` : ''
-      ].join(','))
-    ].join('\n')
+    try {
+      setExportingCSV(true)
 
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute('download', `companies_export_${new Date().toISOString().split('T')[0]}.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      // Get company IDs
+      const companyIds = selectedData.map(c => c.id)
 
-    alert(`Exported ${selectedData.length} companies successfully!`)
+      // Call API to generate multi-sheet Excel export
+      const response = await fetch('/api/companies/export/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyIds,
+          userId: user?.id
+        })
+      })
+
+      if (response.ok) {
+        // Download the Excel file
+        const excelBuffer = await response.arrayBuffer()
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+
+        const contentDisposition = response.headers.get('content-disposition')
+        const filename = contentDisposition
+          ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+          : `companies-export-${new Date().toISOString().split('T')[0]}.xlsx`
+
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+
+        alert(`Exported ${selectedData.length} companies successfully! The file includes separate sheets for each enrichment source.`)
+      } else {
+        const error = await response.json()
+        alert(`Failed to export: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error exporting companies:', error)
+      alert('Error exporting companies. Please try again.')
+    } finally {
+      setExportingCSV(false)
+    }
   }
 
   // Helper function to check if date is today
@@ -1154,41 +1170,47 @@ export default function CompanyManagementPage() {
 
                   {/* Export Button */}
                   <button
-                    onClick={() => {
-                      // Create CSV export for single company
-                      const headers = ['Name', 'Address', 'City', 'State', 'Industry', 'Phone', 'Website', 'Email', 'Google Rating', 'Review Count', 'Google Listing'];
+                    onClick={async () => {
                       const company = selectedCompanyDetails;
-                      const csvContent = [
-                        headers.join(','),
-                        [
-                          `"${company.name || ''}"`,
-                          `"${company.formatted_address || company.address || company.location || ''}"`,
-                          `"${company.city || ''}"`,
-                          `"${company.state || ''}"`,
-                          `"${company.industry || ''}"`,
-                          `"${company.phone || company.formatted_phone_number || ''}"`,
-                          `"${company.website || ''}"`,
-                          `"${company.email || ''}"`,
-                          company.rating ? company.rating.toFixed(1) : '',
-                          company.user_ratings_total || '',
-                          company.place_id ? `"${getGoogleListingUrl(company.place_id)}"` : ''
-                        ].join(',')
-                      ].join('\n');
+                      try {
+                        setExportingCSV(true);
 
-                      // Create download
-                      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                      const link = document.createElement('a');
-                      const url = URL.createObjectURL(blob);
-                      link.setAttribute('href', url);
-                      link.setAttribute('download', `${company.name.replace(/[^a-zA-Z0-9]/g, '-')}-details.csv`);
-                      link.style.visibility = 'hidden';
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
+                        // Call API to generate multi-sheet Excel export for single company
+                        const response = await fetch('/api/companies/export/csv', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            companyIds: [company.id],
+                            userId: user?.id
+                          })
+                        });
+
+                        if (response.ok) {
+                          const excelBuffer = await response.arrayBuffer();
+                          const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${company.name.replace(/[^a-zA-Z0-9]/g, '-')}-details.xlsx`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          window.URL.revokeObjectURL(url);
+                        } else {
+                          const error = await response.json();
+                          alert(`Failed to export: ${error.error}`);
+                        }
+                      } catch (error) {
+                        console.error('Error exporting company:', error);
+                        alert('Error exporting company. Please try again.');
+                      } finally {
+                        setExportingCSV(false);
+                      }
                     }}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                    disabled={exportingCSV}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    📊 Export CSV
+                    {exportingCSV ? 'Exporting...' : '📊 Export Excel'}
                   </button>
 
                   {selectedCompanyDetails.website && (
