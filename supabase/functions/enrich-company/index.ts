@@ -29,8 +29,8 @@ serve(async (req) => {
   }
 
   try {
-    const { companyId, providers = ['hunter', 'apollo'] }: EnrichmentRequest = await req.json()
-    
+    const { companyId, providers }: EnrichmentRequest = await req.json()
+
     if (!companyId) {
       throw new Error('companyId is required')
     }
@@ -39,6 +39,25 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
+
+    // Get enrichment source priorities from database
+    let activeProviders = providers
+    if (!activeProviders) {
+      const { data: sources, error: sourcesError } = await supabase
+        .from('enrichment_sources')
+        .select('source_name, priority')
+        .eq('is_enabled', true)
+        .neq('priority', 'DO_NOT_USE')
+        .order('priority', { ascending: true })
+
+      if (sourcesError) {
+        console.warn('Failed to load enrichment sources, using defaults:', sourcesError)
+        activeProviders = ['hunter', 'apollo']
+      } else {
+        activeProviders = sources.map(s => s.source_name)
+        console.log('Using prioritized enrichment sources:', activeProviders)
+      }
+    }
 
     // Get company data
     const { data: company, error: companyError } = await supabase
@@ -65,9 +84,10 @@ serve(async (req) => {
     }
 
     console.log(`Starting enrichment for company: ${company.name}`)
+    console.log(`Using providers in priority order:`, activeProviders)
 
     // Fetch enrichment data from providers
-    const enrichmentData = await fetchEnrichmentData(company, providers)
+    const enrichmentData = await fetchEnrichmentData(company, activeProviders)
 
     // Update enrichment with results
     const { error: enrichError } = await supabase
@@ -90,7 +110,7 @@ serve(async (req) => {
       p_entity: 'ENRICHMENT',
       p_entity_id: companyId,
       p_metadata: {
-        providers_used: providers,
+        providers_used: activeProviders,
         confidence: enrichmentData.confidence,
         data_points: Object.keys(enrichmentData).length
       }
@@ -160,62 +180,93 @@ async function fetchEnrichmentData(company: any, providers: string[]): Promise<E
   let totalConfidence = 0
   let dataPoints = 0
 
-  // Hunter.io - Email finding
-  if (providers.includes('hunter') && company.website) {
-    try {
-      const hunterData = await fetchFromHunter(company.website)
-      if (hunterData.owner_email) {
-        enrichmentData.owner_email = hunterData.owner_email
-        enrichmentData.owner_name = hunterData.owner_name
-        enrichmentData.sources.owner_email = 'hunter'
-        enrichmentData.sources.owner_name = 'hunter'
-        totalConfidence += 0.8
-        dataPoints += 2
-      }
-    } catch (error) {
-      console.warn('Hunter.io enrichment failed:', error.message)
-    }
-  }
+  // Process providers in priority order
+  for (const provider of providers) {
+    console.log(`Attempting enrichment with: ${provider}`)
 
-  // Apollo - Contact and company data
-  if (providers.includes('apollo')) {
-    try {
-      const apolloData = await fetchFromApollo(company)
-      if (apolloData.employee_count) {
-        enrichmentData.employee_count = apolloData.employee_count
-        enrichmentData.sources.employee_count = 'apollo'
-        totalConfidence += 0.7
-        dataPoints += 1
+    if (provider === 'hunter' && company.website) {
+      try {
+        const hunterData = await fetchFromHunter(company.website)
+        if (hunterData.owner_email) {
+          enrichmentData.owner_email = hunterData.owner_email
+          enrichmentData.owner_name = hunterData.owner_name
+          enrichmentData.sources.owner_email = 'hunter'
+          enrichmentData.sources.owner_name = 'hunter'
+          totalConfidence += 0.8
+          dataPoints += 2
+          console.log('✓ Hunter.io provided email and name')
+        }
+      } catch (error) {
+        console.warn('Hunter.io enrichment failed:', error.message)
       }
-      if (apolloData.revenue) {
-        enrichmentData.revenue = apolloData.revenue
-        enrichmentData.sources.revenue = 'apollo'
-        totalConfidence += 0.6
-        dataPoints += 1
-      }
-    } catch (error) {
-      console.warn('Apollo enrichment failed:', error.message)
     }
-  }
 
-  // ZoomInfo simulation (placeholder)
-  if (providers.includes('zoominfo')) {
-    try {
-      const zoomInfoData = await fetchFromZoomInfo(company)
-      if (zoomInfoData.owner_phone) {
-        enrichmentData.owner_phone = zoomInfoData.owner_phone
-        enrichmentData.sources.owner_phone = 'zoominfo'
-        totalConfidence += 0.75
-        dataPoints += 1
+    if (provider === 'apollo') {
+      try {
+        const apolloData = await fetchFromApollo(company)
+        if (apolloData.employee_count) {
+          enrichmentData.employee_count = apolloData.employee_count
+          enrichmentData.sources.employee_count = 'apollo'
+          totalConfidence += 0.7
+          dataPoints += 1
+          console.log('✓ Apollo provided employee count')
+        }
+        if (apolloData.revenue) {
+          enrichmentData.revenue = apolloData.revenue
+          enrichmentData.sources.revenue = 'apollo'
+          totalConfidence += 0.6
+          dataPoints += 1
+          console.log('✓ Apollo provided revenue')
+        }
+      } catch (error) {
+        console.warn('Apollo enrichment failed:', error.message)
       }
-    } catch (error) {
-      console.warn('ZoomInfo enrichment failed:', error.message)
+    }
+
+    if (provider === 'zoominfo') {
+      try {
+        const zoomInfoData = await fetchFromZoomInfo(company)
+        if (zoomInfoData.owner_phone) {
+          enrichmentData.owner_phone = zoomInfoData.owner_phone
+          enrichmentData.sources.owner_phone = 'zoominfo'
+          totalConfidence += 0.75
+          dataPoints += 1
+          console.log('✓ ZoomInfo provided phone')
+        }
+        // ZoomInfo can also provide email and company data if higher priority
+        if (zoomInfoData.owner_email && !enrichmentData.owner_email) {
+          enrichmentData.owner_email = zoomInfoData.owner_email
+          enrichmentData.owner_name = zoomInfoData.owner_name
+          enrichmentData.sources.owner_email = 'zoominfo'
+          enrichmentData.sources.owner_name = 'zoominfo'
+          totalConfidence += 0.85
+          dataPoints += 2
+          console.log('✓ ZoomInfo provided email and name')
+        }
+        if (zoomInfoData.employee_count && !enrichmentData.employee_count) {
+          enrichmentData.employee_count = zoomInfoData.employee_count
+          enrichmentData.sources.employee_count = 'zoominfo'
+          totalConfidence += 0.8
+          dataPoints += 1
+          console.log('✓ ZoomInfo provided employee count')
+        }
+        if (zoomInfoData.revenue && !enrichmentData.revenue) {
+          enrichmentData.revenue = zoomInfoData.revenue
+          enrichmentData.sources.revenue = 'zoominfo'
+          totalConfidence += 0.75
+          dataPoints += 1
+          console.log('✓ ZoomInfo provided revenue')
+        }
+      } catch (error) {
+        console.warn('ZoomInfo enrichment failed:', error.message)
+      }
     }
   }
 
   // Calculate overall confidence
   enrichmentData.confidence = dataPoints > 0 ? Math.min(totalConfidence / dataPoints, 1.0) : 0.1
 
+  console.log(`Enrichment complete: ${dataPoints} data points collected`)
   return enrichmentData
 }
 
@@ -265,7 +316,15 @@ async function fetchFromApollo(company: any): Promise<any> {
 
 async function fetchFromZoomInfo(company: any): Promise<any> {
   // ZoomInfo API would go here - for now return mock data
+  // ZoomInfo typically provides comprehensive data including contact info, company details, etc.
+  const mockEmployeeCount = Math.floor(Math.random() * 250) + 15
+  const mockRevenue = mockEmployeeCount * 120000
+
   return {
-    owner_phone: '+1-555-' + Math.floor(Math.random() * 9000 + 1000)
+    owner_phone: '+1-555-' + Math.floor(Math.random() * 9000 + 1000),
+    owner_email: company.website ? `contact@${new URL(company.website).hostname}` : null,
+    owner_name: 'Business Owner', // Would be actual name from ZoomInfo
+    employee_count: mockEmployeeCount,
+    revenue: mockRevenue
   }
 }

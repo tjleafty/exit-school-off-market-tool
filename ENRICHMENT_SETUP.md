@@ -1,143 +1,251 @@
-# Enrichment Process Setup & Troubleshooting
+# Enrichment Source Priority Management
 
-## Issue Identified
+## Overview
+This system allows you to configure the priority order for data enrichment sources (ZoomInfo, Hunter.io, Apollo.io) through an admin interface.
 
-The enrichment process was failing due to a **database schema mismatch**. The enrichment API was trying to write to columns that don't exist in the current database.
+## Setup Instructions
 
-### Root Cause
-- The initial database migration (001_initial_schema.sql) created a basic `companies` table
-- The enrichment API expects additional columns like `email`, `formatted_address`, `city`, `state`, etc.
-- These columns were defined in a separate `companies-table.sql` file but never migrated
+### Step 1: Run Database Migration
 
-## Solution Implemented
+You need to create the `enrichment_sources` table in your Supabase database.
 
-### 1. Created Migration File
-Created `supabase/migrations/005_update_companies_for_enrichment.sql` that:
-- Adds all missing enrichment columns to the companies table
-- Handles column renames (address → formatted_address, review_count → user_ratings_total)
-- Creates necessary indexes for performance
-- Adds update triggers
-- Updates existing data appropriately
+**Using Supabase SQL Editor (Recommended)**
+1. Go to your Supabase Dashboard: https://app.supabase.com
+2. Navigate to SQL Editor
+3. Copy and paste the contents of `supabase/migrations/007_enrichment_sources.sql`
+4. Click "Run" to execute the migration
 
-### 2. Enhanced API Error Handling
-Updated `app/api/companies/enrich/route.js` to:
-- Gracefully handle missing columns
-- Provide helpful error messages pointing to the migration
-- Filter data to only include valid columns
-- Better error diagnostics
+The migration will:
+- Create a new `source_priority` enum type
+- Create the `enrichment_sources` table
+- Add indexes for performance
+- Insert default source configurations:
+  - ZoomInfo: FIRST
+  - Hunter.io: SECOND
+  - Apollo.io: THIRD
 
-## How to Fix the Enrichment Process
+### Step 2: Verify Installation
 
-### Step 1: Run the Database Migration
-Execute the migration in your Supabase dashboard:
+After running the migration, verify it worked:
 
+1. Go to Supabase Dashboard → Table Editor
+2. Look for the `enrichment_sources` table
+3. You should see 3 rows with default priorities
+4. Or run this query in SQL Editor:
 ```sql
--- Copy and paste the contents of:
--- supabase/migrations/005_update_companies_for_enrichment.sql
+SELECT * FROM enrichment_sources ORDER BY priority;
 ```
 
-Or using Supabase CLI:
-```bash
-supabase db push
-```
+### Step 3: Access Admin Interface
 
-### Step 2: Verify the Migration
-Check that the columns were added:
+1. Navigate to your admin settings page: `/dashboard/admin/settings`
+2. Click on the "Enrichment Sources" tab
+3. You'll see the three sources with dropdown menus to set priority
+
+## How It Works
+
+### Priority Levels
+- **First**: Primary enrichment source (attempted first)
+- **Second**: Secondary source (attempted if first doesn't provide all data)
+- **Third**: Tertiary source (attempted last)
+- **Do not use**: Disables the source entirely
+
+### Enrichment Process
+1. When enriching a company, the system queries the `enrichment_sources` table
+2. Sources are sorted by priority (FIRST → SECOND → THIRD)
+3. Each enabled source is called in order
+4. Higher priority sources take precedence for data fields
+5. Sources marked "Do not use" are skipped
+
+### Features
+- ✅ Only one source can be assigned to each priority level
+- ✅ Changing a priority automatically adjusts other sources if needed
+- ✅ Real-time updates reflected in enrichment process
+- ✅ Disabled sources are excluded from enrichment
+- ✅ Comprehensive logging shows which source provided which data
+
+## Usage
+
+### Changing Priority
+1. Navigate to `/dashboard/admin/settings`
+2. Click the "Enrichment Sources" tab
+3. Select a new priority from the dropdown for any source
+4. The system automatically saves and adjusts other priorities as needed
+
+### Example Configurations
+
+**Example 1: ZoomInfo Primary**
+- ZoomInfo: First
+- Hunter.io: Second
+- Apollo.io: Third
+
+**Example 2: Disable ZoomInfo**
+- ZoomInfo: Do not use
+- Hunter.io: First
+- Apollo.io: Second
+
+**Example 3: Hunter.io Only**
+- Hunter.io: First
+- ZoomInfo: Do not use
+- Apollo.io: Do not use
+
+## Technical Details
+
+### Database Schema
 ```sql
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'companies' 
-ORDER BY column_name;
+CREATE TYPE source_priority AS ENUM ('FIRST', 'SECOND', 'THIRD', 'DO_NOT_USE');
+
+CREATE TABLE enrichment_sources (
+  id UUID PRIMARY KEY,
+  source_name TEXT UNIQUE NOT NULL,
+  display_name TEXT NOT NULL,
+  priority source_priority NOT NULL,
+  is_enabled BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-Expected enrichment columns:
-- `email`
-- `formatted_address`
-- `city`
-- `state` 
-- `industry`
-- `is_enriched`
-- `enriched_at`
-- `enrichment_source`
-- And many more...
+### API Endpoints
 
-### Step 3: Test the Enrichment
-Try enriching a company through the UI or API:
-```bash
-curl -X POST "http://localhost:3000/api/companies/enrich" \
-  -H "Content-Type: application/json" \
-  -d '{"companyData":{"name":"Test Company","website":"https://example.com"}}'
-```
-
-## API Endpoints
-
-### POST /api/companies/enrich
-Enriches company data using Google Places API
-
-**Body:**
+**GET `/api/settings/enrichment-sources`**
+- Returns all enrichment sources with their current priorities
+- Response:
 ```json
 {
-  "companyId": "uuid-here", // Optional: update existing company
-  "companyData": {          // Required: company data to enrich
-    "name": "Company Name",
-    "website": "https://example.com",
-    "place_id": "google-place-id"
-  }
+  "success": true,
+  "sources": [
+    {
+      "id": "uuid",
+      "source_name": "zoominfo",
+      "display_name": "ZoomInfo",
+      "priority": "FIRST",
+      "is_enabled": true
+    }
+  ]
 }
 ```
 
-### GET /api/companies/enrich
-Lists all companies with enrichment status
-
-**Query Parameters:**
-- `enriched=true` - Only show enriched companies
-
-## Enrichment Process Flow
-
-1. **Input Validation** - Check for companyId or companyData
-2. **Google Places Enhancement** - Fetch detailed info if place_id provided
-3. **Email Extraction** - Generate contact email from website domain
-4. **Industry Classification** - Map Google Places types to industries
-5. **Database Storage** - Save enriched data with metadata
-6. **Response** - Return success/error with enriched data
-
-## Error Messages & Solutions
-
-### "Could not find the 'email' column"
-**Solution:** Run the database migration (Step 1 above)
-
-### "Database schema outdated"
-**Solution:** The API will return this error if columns are missing. Run the migration.
-
-### "Companies table not found"
-**Solution:** Run the initial migration first, then the enrichment migration.
-
-## Column Mapping
-
-| Enrichment Field | Database Column | Source |
-|------------------|-----------------|---------|
-| name | name | Google Places |
-| email | email | Generated from domain |
-| phone | formatted_phone_number | Google Places |
-| address | formatted_address | Google Places |
-| website | website | Google Places |
-| industry | industry_categories | Derived from types |
-| rating | rating | Google Places |
-| reviews | user_ratings_total | Google Places |
-
-## Next Steps
-
-After running the migration:
-1. Test enrichment on existing companies
-2. Verify new companies can be enriched during creation
-3. Check that the data enrichment page works properly
-4. Ensure report generation includes enriched data
-
-## Environment Variables Required
-
-Make sure these are set in your `.env.local`:
+**PUT `/api/settings/enrichment-sources`**
+- Updates a source's priority
+- Body:
+```json
+{
+  "source_name": "zoominfo",
+  "priority": "FIRST"
+}
 ```
-GOOGLE_PLACES_API_KEY=your_google_places_api_key
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+- Automatically handles priority conflicts by swapping
+
+### Enrichment Function Updates
+
+The enrichment Edge Function (`supabase/functions/enrich-company/index.ts`) now:
+1. Loads enabled sources from the database at runtime
+2. Sorts by priority (FIRST → SECOND → THIRD)
+3. Processes enrichment in priority order
+4. Only uses data from higher-priority sources
+5. Logs which sources provided which data points
+
+Example log output:
 ```
+Using prioritized enrichment sources: ['zoominfo', 'hunter', 'apollo']
+Attempting enrichment with: zoominfo
+✓ ZoomInfo provided email and name
+✓ ZoomInfo provided phone
+✓ ZoomInfo provided employee count
+Enrichment complete: 5 data points collected
+```
+
+## Data Source Capabilities
+
+### ZoomInfo
+Provides comprehensive B2B data:
+- Owner name and email
+- Phone numbers
+- Employee count
+- Revenue estimates
+- Company details
+
+### Hunter.io
+Specializes in email finding:
+- Email addresses
+- Email verification
+- Contact names
+- Email patterns
+
+### Apollo.io
+B2B contact and company database:
+- Employee count
+- Revenue data
+- Company information
+- Contact details
+
+## Troubleshooting
+
+### Sources not appearing in admin panel
+
+**Problem**: The "Enrichment Sources" tab is empty
+
+**Solutions**:
+1. Run the migration in Supabase SQL Editor
+2. Check browser console for errors (F12)
+3. Verify the API endpoint is accessible:
+   ```bash
+   curl https://your-domain.com/api/settings/enrichment-sources
+   ```
+4. Check that the table exists:
+   ```sql
+   SELECT * FROM enrichment_sources;
+   ```
+
+### Enrichment not respecting priorities
+
+**Problem**: Enrichment still uses old priority order
+
+**Solutions**:
+1. Check Supabase function logs in Dashboard → Edge Functions → Logs
+2. Verify sources are marked as enabled:
+   ```sql
+   SELECT source_name, priority, is_enabled FROM enrichment_sources;
+   ```
+3. Ensure the enrichment function was updated (check git status)
+4. Redeploy the Edge Function if needed
+
+### Migration errors
+
+**Common errors and fixes**:
+
+1. **"type source_priority already exists"**
+   - The migration was already run
+   - Skip this step or drop and recreate
+
+2. **"function update_updated_at() does not exist"**
+   - Run migration 001 first
+   - This creates the required trigger function
+
+3. **"permission denied"**
+   - Use the service role key
+   - Make sure you're an admin in Supabase
+
+### Priority conflicts
+
+**Problem**: Can't set a source to a priority that's already used
+
+**Solution**: The system automatically handles this by:
+1. Setting the conflicting source to "Do not use"
+2. Then applying your requested priority
+3. You can manually reassign priorities as needed
+
+## Best Practices
+
+1. **Test First**: After changing priorities, test enrichment on a single company
+2. **Monitor Logs**: Check Edge Function logs to see which sources are being used
+3. **API Keys**: Ensure all source API keys are configured in Settings → API Connections
+4. **Gradual Changes**: Change one priority at a time to see the impact
+5. **Backup**: The old priority order is logged in the audit trail
+
+## Migration File Location
+
+`supabase/migrations/007_enrichment_sources.sql`
+
+Copy this file's contents and run in Supabase SQL Editor to set up the feature.

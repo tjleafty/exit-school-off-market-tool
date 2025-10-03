@@ -58,8 +58,15 @@ export default function SystemSettingsPage() {
     setTimeout(loadApiKeys, 100)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load enrichment sources on component mount
+  useEffect(() => {
+    loadEnrichmentSources()
+  }, [])
+
   const [activeTab, setActiveTab] = useState('apis')
   const [testingApi, setTestingApi] = useState(null)
+  const [enrichmentSources, setEnrichmentSources] = useState([])
+  const [updatingSource, setUpdatingSource] = useState(null)
 
   const apiConfigs = {
     openai: {
@@ -261,6 +268,71 @@ export default function SystemSettingsPage() {
     }
   }
 
+  const loadEnrichmentSources = async () => {
+    try {
+      const response = await fetch('/api/settings/enrichment-sources')
+      const data = await response.json()
+
+      if (data.success) {
+        setEnrichmentSources(data.sources || [])
+      } else {
+        console.error('Failed to load enrichment sources:', data.error)
+      }
+    } catch (error) {
+      console.error('Error loading enrichment sources:', error)
+    }
+  }
+
+  const updateSourcePriority = async (sourceName, newPriority) => {
+    setUpdatingSource(sourceName)
+
+    try {
+      const response = await fetch('/api/settings/enrichment-sources', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_name: sourceName,
+          priority: newPriority
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Reload sources to reflect any swaps
+        await loadEnrichmentSources()
+      } else {
+        console.error('Failed to update source priority:', data.error)
+        alert('Failed to update priority. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error updating source priority:', error)
+      alert('Error updating priority. Please try again.')
+    } finally {
+      setUpdatingSource(null)
+    }
+  }
+
+  const getPriorityLabel = (priority) => {
+    switch(priority) {
+      case 'FIRST': return 'First'
+      case 'SECOND': return 'Second'
+      case 'THIRD': return 'Third'
+      case 'DO_NOT_USE': return 'Do not use'
+      default: return priority
+    }
+  }
+
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'FIRST': return 'bg-green-100 text-green-800'
+      case 'SECOND': return 'bg-blue-100 text-blue-800'
+      case 'THIRD': return 'bg-yellow-100 text-yellow-800'
+      case 'DO_NOT_USE': return 'bg-gray-100 text-gray-600'
+      default: return 'bg-gray-100 text-gray-600'
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
@@ -303,6 +375,16 @@ export default function SystemSettingsPage() {
                 }`}
               >
                 API Connections
+              </button>
+              <button
+                onClick={() => setActiveTab('enrichment')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'enrichment'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Enrichment Sources
               </button>
               <button
                 onClick={() => setActiveTab('general')}
@@ -375,6 +457,73 @@ export default function SystemSettingsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Enrichment Sources Tab */}
+          {activeTab === 'enrichment' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Enrichment Source Priority</h3>
+                <p className="text-sm text-gray-600">
+                  Configure the priority order for data enrichment sources. The system will attempt to enrich data
+                  in the order specified (First, Second, Third). Sources marked as &quot;Do not use&quot; will be disabled.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {enrichmentSources.length > 0 ? (
+                  enrichmentSources.map((source) => (
+                    <div key={source.id} className="border border-gray-200 rounded-lg p-5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <h4 className="text-md font-medium text-gray-900">{source.display_name}</h4>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(source.priority)}`}>
+                              {getPriorityLabel(source.priority)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Status: {source.is_enabled ? 'Enabled' : 'Disabled'}
+                          </p>
+                        </div>
+
+                        <div className="ml-4">
+                          <select
+                            value={source.priority}
+                            onChange={(e) => updateSourcePriority(source.source_name, e.target.value)}
+                            disabled={updatingSource === source.source_name}
+                            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <option value="FIRST">First</option>
+                            <option value="SECOND">Second</option>
+                            <option value="THIRD">Third</option>
+                            <option value="DO_NOT_USE">Do not use</option>
+                          </select>
+                          {updatingSource === source.source_name && (
+                            <span className="ml-2 text-sm text-gray-500">Updating...</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No enrichment sources configured</p>
+                    <p className="text-sm mt-2">Run the database migration to set up enrichment sources</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">💡 How it works:</h4>
+                <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                  <li>The system attempts enrichment in priority order (First → Second → Third)</li>
+                  <li>Only one source can be assigned to each priority level</li>
+                  <li>Changing a priority will automatically adjust other sources if needed</li>
+                  <li>Sources set to &quot;Do not use&quot; will be disabled entirely</li>
+                </ul>
+              </div>
             </div>
           )}
 
