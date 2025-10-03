@@ -315,16 +315,114 @@ async function fetchFromApollo(company: any): Promise<any> {
 }
 
 async function fetchFromZoomInfo(company: any): Promise<any> {
-  // ZoomInfo API would go here - for now return mock data
-  // ZoomInfo typically provides comprehensive data including contact info, company details, etc.
-  const mockEmployeeCount = Math.floor(Math.random() * 250) + 15
-  const mockRevenue = mockEmployeeCount * 120000
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
 
-  return {
-    owner_phone: '+1-555-' + Math.floor(Math.random() * 9000 + 1000),
-    owner_email: company.website ? `contact@${new URL(company.website).hostname}` : null,
-    owner_name: 'Business Owner', // Would be actual name from ZoomInfo
-    employee_count: mockEmployeeCount,
-    revenue: mockRevenue
+  // Get ZoomInfo API key from database
+  const { data: apiKeyData, error: apiKeyError } = await supabase
+    .from('api_keys')
+    .select('encrypted_key')
+    .eq('service', 'zoominfo')
+    .eq('status', 'Connected')
+    .single()
+
+  if (apiKeyError || !apiKeyData?.encrypted_key) {
+    console.warn('ZoomInfo API key not found in database')
+    return {}
+  }
+
+  const apiKey = apiKeyData.encrypted_key
+
+  try {
+    // ZoomInfo Company Search API
+    // Search by company name or website domain
+    const searchParam = company.website
+      ? new URL(company.website).hostname
+      : company.name
+
+    const searchResponse = await fetch(
+      `https://api.zoominfo.com/search/company`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          companyName: company.name,
+          websiteDomain: company.website ? new URL(company.website).hostname : undefined,
+          maxResults: 1
+        })
+      }
+    )
+
+    if (!searchResponse.ok) {
+      const errorText = await searchResponse.text()
+      console.error(`ZoomInfo API error (${searchResponse.status}):`, errorText)
+      return {}
+    }
+
+    const searchData = await searchResponse.json()
+
+    if (!searchData?.data || searchData.data.length === 0) {
+      console.warn('No company found in ZoomInfo')
+      return {}
+    }
+
+    const companyData = searchData.data[0]
+
+    // Extract enrichment data from ZoomInfo response
+    const enrichmentData: any = {}
+
+    // Company information
+    if (companyData.revenue) enrichmentData.revenue = companyData.revenue
+    if (companyData.employees) enrichmentData.employee_count = companyData.employees
+
+    // Contact information (if available in company record)
+    if (companyData.phone) enrichmentData.owner_phone = companyData.phone
+
+    // Get primary contact if available
+    if (companyData.id) {
+      try {
+        const contactResponse = await fetch(
+          `https://api.zoominfo.com/search/contact`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              companyId: companyData.id,
+              managementLevel: ['Owner', 'C-Level', 'VP'],
+              maxResults: 1
+            })
+          }
+        )
+
+        if (contactResponse.ok) {
+          const contactData = await contactResponse.json()
+          if (contactData?.data && contactData.data.length > 0) {
+            const contact = contactData.data[0]
+            if (contact.email) enrichmentData.owner_email = contact.email
+            if (contact.firstName && contact.lastName) {
+              enrichmentData.owner_name = `${contact.firstName} ${contact.lastName}`.trim()
+            }
+            if (contact.directPhone) enrichmentData.owner_phone = contact.directPhone
+          }
+        }
+      } catch (contactError) {
+        console.warn('ZoomInfo contact lookup failed:', contactError)
+      }
+    }
+
+    console.log('✓ ZoomInfo enrichment successful')
+    return enrichmentData
+
+  } catch (error) {
+    console.error('ZoomInfo API call failed:', error)
+    return {}
   }
 }
