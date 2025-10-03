@@ -70,18 +70,7 @@ serve(async (req) => {
       throw new Error(`Company not found: ${companyError?.message}`)
     }
 
-    // Update enrichment status to RUNNING
-    const { error: updateError } = await supabase
-      .from('enrichments')
-      .update({ 
-        status: 'RUNNING',
-        updated_at: new Date().toISOString()
-      })
-      .eq('company_id', companyId)
-
-    if (updateError) {
-      console.error('Failed to update enrichment status:', updateError)
-    }
+    console.log('Company data retrieved:', company.name)
 
     console.log(`Starting enrichment for company: ${company.name}`)
     console.log(`Using providers in priority order:`, activeProviders)
@@ -89,17 +78,18 @@ serve(async (req) => {
     // Fetch enrichment data from providers
     const enrichmentData = await fetchEnrichmentData(company, activeProviders)
 
-    // Update enrichment with results
+    // Update company with enrichment data
     const { error: enrichError } = await supabase
-      .from('enrichments')
+      .from('companies')
       .update({
-        status: 'COMPLETED',
-        ...enrichmentData,
+        is_enriched: true,
+        enrichment_data: enrichmentData,
         updated_at: new Date().toISOString()
       })
-      .eq('company_id', companyId)
+      .eq('id', companyId)
 
     if (enrichError) {
+      console.error('Failed to update company with enrichment data:', enrichError)
       throw enrichError
     }
 
@@ -134,26 +124,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Enrichment error:', error)
 
-    // Try to update enrichment status to FAILED
-    try {
-      const { companyId } = await req.json()
-      if (companyId) {
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-        )
-        
-        await supabase
-          .from('enrichments')
-          .update({ 
-            status: 'FAILED',
-            updated_at: new Date().toISOString()
-          })
-          .eq('company_id', companyId)
-      }
-    } catch (updateError) {
-      console.error('Failed to update enrichment status to FAILED:', updateError)
-    }
+    console.error('Failed to enrich company')
 
     return new Response(
       JSON.stringify({ 
