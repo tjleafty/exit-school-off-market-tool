@@ -86,6 +86,8 @@ export default function CompanyManagementPage() {
       const data = await response.json()
 
       if (data.success) {
+        console.log('Total companies from API:', data.companies.length)
+
         // Separate today's companies from historical ones
         const today = new Date()
         today.setHours(0, 0, 0, 0)
@@ -97,12 +99,22 @@ export default function CompanyManagementPage() {
           const companyDate = new Date(company.created_at)
           companyDate.setHours(0, 0, 0, 0)
 
+          console.log('Comparing:', {
+            companyName: company.name,
+            companyDate: companyDate.toISOString(),
+            today: today.toISOString(),
+            isToday: companyDate.getTime() === today.getTime()
+          })
+
           if (companyDate.getTime() === today.getTime()) {
             todaysCompanies.push(company)
           } else {
             historicalCompanies.push(company)
           }
         })
+
+        console.log('Todays companies:', todaysCompanies.length)
+        console.log('Historical companies:', historicalCompanies.length)
 
         setSavedCompanies(todaysCompanies)
         setHistoricalCompanies(historicalCompanies)
