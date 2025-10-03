@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../../../lib/supabase'
+import * as XLSX from 'xlsx'
 
 export async function POST(request) {
   try {
@@ -49,16 +50,16 @@ export async function POST(request) {
       )
     }
 
-    // Generate CSV content
-    const csvContent = generateCSV(companies, targetDate)
-    
+    // Generate multi-sheet Excel file with separate sheets for each enrichment source
+    const excelBuffer = generateMultiSheetExcel(companies, targetDate)
+
     // Format filename with date
     const dateStr = targetDate.toISOString().split('T')[0] // YYYY-MM-DD format
-    const filename = `companies-export-${dateStr}.csv`
+    const filename = `companies-export-${dateStr}.xlsx`
 
-    return new NextResponse(csvContent, {
+    return new NextResponse(excelBuffer, {
       headers: {
-        'Content-Type': 'text/csv',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`
       }
     })
@@ -70,6 +71,350 @@ export async function POST(request) {
       { status: 500 }
     )
   }
+}
+
+function generateMultiSheetExcel(companies, exportDate) {
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new()
+
+  // Sheet 1: Main Company Data (existing format)
+  const mainSheetData = generateMainSheetData(companies, exportDate)
+  const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData)
+  XLSX.utils.book_append_sheet(workbook, mainSheet, 'All Companies')
+
+  // Sheet 2: ZoomInfo Data
+  const zoomInfoData = generateZoomInfoSheetData(companies, exportDate)
+  const zoomInfoSheet = XLSX.utils.aoa_to_sheet(zoomInfoData)
+  XLSX.utils.book_append_sheet(workbook, zoomInfoSheet, 'ZoomInfo Data')
+
+  // Sheet 3: Hunter.io Data
+  const hunterData = generateHunterSheetData(companies, exportDate)
+  const hunterSheet = XLSX.utils.aoa_to_sheet(hunterData)
+  XLSX.utils.book_append_sheet(workbook, hunterSheet, 'Hunter.io Data')
+
+  // Sheet 4: Apollo.io Data
+  const apolloData = generateApolloSheetData(companies, exportDate)
+  const apolloSheet = XLSX.utils.aoa_to_sheet(apolloData)
+  XLSX.utils.book_append_sheet(workbook, apolloSheet, 'Apollo.io Data')
+
+  // Generate buffer
+  const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+  return excelBuffer
+}
+
+function generateMainSheetData(companies, exportDate) {
+  // Report header information
+  const reportInfo = [
+    ['Exit School Off-Market Tool - Company Intelligence Report'],
+    [''],
+    ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
+    ['Data Date:', exportDate.toLocaleDateString()],
+    ['Total Companies:', companies.length.toString()],
+    ['Enriched Companies:', companies.filter(c => c.is_enriched).length.toString()],
+    ['Pending Enrichment:', companies.filter(c => !c.is_enriched).length.toString()],
+    ['']
+  ]
+
+  // Column headers
+  const headers = [
+    'Company Name',
+    'Primary Contact Email',
+    'Phone Number',
+    'Website URL',
+    'Google Listing URL',
+    'Business Address',
+    'Industry Category',
+    'Owner/Decision Maker',
+    'Owner Email',
+    'Owner Phone',
+    'Owner LinkedIn',
+    'Employee Count',
+    'Company Size Range',
+    'Annual Revenue',
+    'Revenue Range',
+    'Google Rating',
+    'Total Reviews',
+    'Business Status',
+    'Email Confidence Level',
+    'Data Enrichment Status',
+    'Enrichment Source',
+    'Discovery Date',
+    'Last Enriched',
+    'Company ID',
+    'Place ID',
+    'Data Quality Score'
+  ]
+
+  // Data rows
+  const dataRows = companies.map(company => [
+    company.name || 'N/A',
+    company.email || 'Not Available',
+    formatPhoneNumber(company.phone || company.formatted_phone_number || ''),
+    company.website || 'Not Available',
+    company.place_id ? `https://www.google.com/maps/place/?q=place_id:${company.place_id}` : 'Not Available',
+    company.formatted_address || company.location || 'Not Available',
+    company.industry || determineIndustryFromTypes(company.types) || 'Not Specified',
+    company.owner_name || 'Not Identified',
+    company.owner_email || company.email || 'Not Available',
+    formatPhoneNumber(company.owner_phone || '') || 'Not Available',
+    company.owner_linkedin || company.linkedin_url || 'Not Available',
+    company.employee_count ? company.employee_count.toString() : 'Unknown',
+    company.employees_range === 'Data not verified' ? 'Data not verified' : company.employees_range || determineEmployeeRange(company.employee_count) || 'Not Available',
+    company.revenue === 'Data not verified' ? 'Data not verified' : company.revenue ? `$${company.revenue}` : 'Not Available',
+    company.revenue_range === 'Data not verified' ? 'Data not verified' : company.revenue_range || determineRevenueRange(company.revenue) || 'Not Available',
+    company.rating ? `${company.rating}/5.0` : 'No Rating',
+    (company.user_ratings_total || company.total_reviews || '0').toString(),
+    company.business_status || 'Unknown',
+    company.email_confidence || 'Not Assessed',
+    company.is_enriched ? 'Enriched' : 'Pending Enrichment',
+    company.enrichment_source || 'Initial Discovery',
+    formatDate(company.created_at),
+    company.enriched_at ? formatDate(company.enriched_at) : 'Not Enriched',
+    company.id || '',
+    company.place_id || '',
+    calculateDataQualityScore(company)
+  ])
+
+  return [...reportInfo, headers, ...dataRows]
+}
+
+function generateZoomInfoSheetData(companies, exportDate) {
+  const reportInfo = [
+    ['ZoomInfo Enrichment Data'],
+    [''],
+    ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
+    ['Data Date:', exportDate.toLocaleDateString()],
+    ['Total Companies with ZoomInfo Data:', companies.filter(c => c.enrichment_data?.zoominfo_data && Object.keys(c.enrichment_data.zoominfo_data).length > 0).length.toString()],
+    ['']
+  ]
+
+  const headers = [
+    'Company Name',
+    'Company ID',
+    'ZoomInfo Company ID',
+    'Company Website',
+    'Company Phone',
+    'Revenue',
+    'Employee Count',
+    'Contact Name',
+    'Contact Email',
+    'Contact Phone',
+    'Contact Title',
+    'Enriched At',
+    'Data Source'
+  ]
+
+  const dataRows = companies
+    .filter(c => c.enrichment_data?.zoominfo_data && Object.keys(c.enrichment_data.zoominfo_data).length > 0)
+    .map(company => {
+      const zoomData = company.enrichment_data?.zoominfo_data || {}
+      const companyData = zoomData.company || {}
+      const contactData = zoomData.contact || {}
+
+      return [
+        company.name || 'N/A',
+        company.id || '',
+        companyData.id || 'Not Available',
+        companyData.website || company.website || 'Not Available',
+        companyData.phone || 'Not Available',
+        companyData.revenue || 'Not Available',
+        companyData.employees || companyData.employeeCount || 'Not Available',
+        contactData.firstName && contactData.lastName ? `${contactData.firstName} ${contactData.lastName}` : 'Not Available',
+        contactData.email || 'Not Available',
+        contactData.directPhone || contactData.phone || 'Not Available',
+        contactData.title || contactData.jobTitle || 'Not Available',
+        company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
+        zoomData.source || 'zoominfo'
+      ]
+    })
+
+  if (dataRows.length === 0) {
+    dataRows.push(['No ZoomInfo data available', '', '', '', '', '', '', '', '', '', '', '', ''])
+  }
+
+  return [...reportInfo, headers, ...dataRows]
+}
+
+function generateHunterSheetData(companies, exportDate) {
+  const reportInfo = [
+    ['Hunter.io Enrichment Data'],
+    [''],
+    ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
+    ['Data Date:', exportDate.toLocaleDateString()],
+    ['Total Companies with Hunter.io Data:', companies.filter(c => c.enrichment_data?.hunter_data && Object.keys(c.enrichment_data.hunter_data).length > 0).length.toString()],
+    ['']
+  ]
+
+  const headers = [
+    'Company Name',
+    'Company ID',
+    'Domain',
+    'Organization',
+    'Email',
+    'First Name',
+    'Last Name',
+    'Position',
+    'Department',
+    'Email Type',
+    'Confidence Score',
+    'Phone Number',
+    'LinkedIn',
+    'Twitter',
+    'Enriched At',
+    'Data Source'
+  ]
+
+  const dataRows = companies
+    .filter(c => c.enrichment_data?.hunter_data && Object.keys(c.enrichment_data.hunter_data).length > 0)
+    .map(company => {
+      const hunterData = company.enrichment_data?.hunter_data || {}
+      const emails = hunterData.emails || []
+
+      // If there are multiple emails, create a row for each
+      if (emails.length > 0) {
+        return emails.map(email => [
+          company.name || 'N/A',
+          company.id || '',
+          hunterData.domain || 'Not Available',
+          hunterData.organization || 'Not Available',
+          email.value || 'Not Available',
+          email.first_name || 'Not Available',
+          email.last_name || 'Not Available',
+          email.position || 'Not Available',
+          email.department || 'Not Available',
+          email.type || 'Not Available',
+          email.confidence || 'Not Available',
+          email.phone_number || 'Not Available',
+          email.linkedin || 'Not Available',
+          email.twitter || 'Not Available',
+          company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
+          hunterData.source || 'hunter'
+        ])
+      } else {
+        return [[
+          company.name || 'N/A',
+          company.id || '',
+          hunterData.domain || 'Not Available',
+          hunterData.organization || 'Not Available',
+          'No emails found',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
+          hunterData.source || 'hunter'
+        ]]
+      }
+    })
+    .flat()
+
+  if (dataRows.length === 0) {
+    dataRows.push(['No Hunter.io data available', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+  }
+
+  return [...reportInfo, headers, ...dataRows]
+}
+
+function generateApolloSheetData(companies, exportDate) {
+  const reportInfo = [
+    ['Apollo.io Enrichment Data'],
+    [''],
+    ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
+    ['Data Date:', exportDate.toLocaleDateString()],
+    ['Total Companies with Apollo.io Data:', companies.filter(c => c.enrichment_data?.apollo_data && Object.keys(c.enrichment_data.apollo_data).length > 0).length.toString()],
+    ['']
+  ]
+
+  const headers = [
+    'Company Name',
+    'Company ID',
+    'Apollo Organization ID',
+    'Organization Name',
+    'Website',
+    'Domain',
+    'Industry',
+    'Keywords',
+    'Founded Year',
+    'Employee Count',
+    'Estimated Revenue',
+    'City',
+    'State',
+    'Country',
+    'Phone',
+    'LinkedIn URL',
+    'Facebook URL',
+    'Twitter URL',
+    'Enriched At',
+    'Data Source'
+  ]
+
+  const dataRows = companies
+    .filter(c => c.enrichment_data?.apollo_data && Object.keys(c.enrichment_data.apollo_data).length > 0)
+    .map(company => {
+      const apolloData = company.enrichment_data?.apollo_data || {}
+      const organizations = apolloData.organizations || []
+
+      // If there are multiple organizations, create a row for each
+      if (organizations.length > 0) {
+        return organizations.map(org => [
+          company.name || 'N/A',
+          company.id || '',
+          org.id || 'Not Available',
+          org.name || 'Not Available',
+          org.website_url || 'Not Available',
+          org.primary_domain || 'Not Available',
+          org.industry || 'Not Available',
+          Array.isArray(org.keywords) ? org.keywords.join(', ') : 'Not Available',
+          org.founded_year || 'Not Available',
+          org.employee_count || org.estimated_num_employees || 'Not Available',
+          org.estimated_annual_revenue || 'Not Available',
+          org.city || 'Not Available',
+          org.state || 'Not Available',
+          org.country || 'Not Available',
+          org.phone || 'Not Available',
+          org.linkedin_url || 'Not Available',
+          org.facebook_url || 'Not Available',
+          org.twitter_url || 'Not Available',
+          company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
+          apolloData.source || 'apollo'
+        ])
+      } else {
+        return [[
+          company.name || 'N/A',
+          company.id || '',
+          'Not Available',
+          'No organization found',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
+          apolloData.source || 'apollo'
+        ]]
+      }
+    })
+    .flat()
+
+  if (dataRows.length === 0) {
+    dataRows.push(['No Apollo.io data available', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+  }
+
+  return [...reportInfo, headers, ...dataRows]
 }
 
 function generateCSV(companies, exportDate) {

@@ -61,22 +61,71 @@ export async function POST(request) {
       company = data
     }
 
-    console.log('Step 2: Enriching company with ZoomInfo:', company.name)
+    console.log('Step 2: Fetching enrichment from configured sources')
 
-    // For now, create mock enrichment data
-    // TODO: Integrate real ZoomInfo API when trial credentials are confirmed
+    // Get enrichment source priorities from database
+    const { data: sources, error: sourcesError } = await supabase
+      .from('enrichment_sources')
+      .select('source_name, priority, is_enabled')
+      .eq('is_enabled', true)
+      .neq('priority', 'DO_NOT_USE')
+      .order('priority', { ascending: true })
+
+    if (sourcesError) {
+      console.error('Error loading enrichment sources:', sourcesError)
+    }
+
+    const activeSources = sources?.map(s => s.source_name) || ['hunter', 'apollo', 'zoominfo']
+    console.log('Step 2.1: Active enrichment sources:', activeSources)
+
+    // Call real enrichment APIs for each active source
     const enrichmentData = {
-      sources: { zoominfo: 'mock' },
-      confidence: 0.5,
-      owner_email: company.website ? `contact@${company.website.replace('http://', '').replace('https://', '').split('/')[0]}` : null,
-      owner_name: 'Business Owner',
-      owner_phone: company.phone || null,
-      employee_count: Math.floor(Math.random() * 200) + 10,
-      revenue: Math.floor(Math.random() * 5000000) + 100000,
+      zoominfo_data: {},
+      hunter_data: {},
+      apollo_data: {},
       enriched_at: new Date().toISOString()
     }
 
-    console.log('Step 3: Enrichment data generated:', JSON.stringify(enrichmentData))
+    // ZoomInfo enrichment
+    if (activeSources.includes('zoominfo')) {
+      console.log('Step 2.2: Calling ZoomInfo API...')
+      try {
+        const zoomInfoData = await callZoomInfoAPI(company)
+        enrichmentData.zoominfo_data = zoomInfoData
+        console.log('✓ ZoomInfo data retrieved')
+      } catch (error) {
+        console.error('ZoomInfo API error:', error.message)
+        enrichmentData.zoominfo_data = { error: error.message }
+      }
+    }
+
+    // Hunter.io enrichment
+    if (activeSources.includes('hunter')) {
+      console.log('Step 2.3: Calling Hunter.io API...')
+      try {
+        const hunterData = await callHunterAPI(company)
+        enrichmentData.hunter_data = hunterData
+        console.log('✓ Hunter.io data retrieved')
+      } catch (error) {
+        console.error('Hunter.io API error:', error.message)
+        enrichmentData.hunter_data = { error: error.message }
+      }
+    }
+
+    // Apollo.io enrichment
+    if (activeSources.includes('apollo')) {
+      console.log('Step 2.4: Calling Apollo.io API...')
+      try {
+        const apolloData = await callApolloAPI(company)
+        enrichmentData.apollo_data = apolloData
+        console.log('✓ Apollo.io data retrieved')
+      } catch (error) {
+        console.error('Apollo.io API error:', error.message)
+        enrichmentData.apollo_data = { error: error.message }
+      }
+    }
+
+    console.log('Step 3: Enrichment data collected from all sources')
 
     // Update company with enriched status and data
     console.log('Step 3.5: Updating company with ID:', company.id)
@@ -135,6 +184,158 @@ export async function POST(request) {
       },
       { status: 500 }
     )
+  }
+}
+
+// Helper function to call ZoomInfo API
+async function callZoomInfoAPI(company) {
+  // Get ZoomInfo API key from database
+  const { data: apiKeyData } = await supabase
+    .from('api_keys')
+    .select('encrypted_key')
+    .eq('service', 'zoominfo')
+    .eq('status', 'Connected')
+    .single()
+
+  if (!apiKeyData?.encrypted_key) {
+    throw new Error('ZoomInfo API key not configured')
+  }
+
+  const apiKey = apiKeyData.encrypted_key
+
+  // Search for company by name and website
+  const searchResponse = await fetch('https://api.zoominfo.com/search/company', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      companyName: company.name,
+      websiteDomain: company.website ? new URL(company.website).hostname : undefined,
+      maxResults: 1
+    })
+  })
+
+  if (!searchResponse.ok) {
+    throw new Error(`ZoomInfo API error: ${searchResponse.status}`)
+  }
+
+  const searchData = await searchResponse.json()
+
+  if (!searchData?.data || searchData.data.length === 0) {
+    return { message: 'No company found in ZoomInfo' }
+  }
+
+  const companyData = searchData.data[0]
+
+  // Get contact information
+  let contactData = null
+  if (companyData.id) {
+    const contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        companyId: companyData.id,
+        managementLevel: ['Owner', 'C-Level', 'VP'],
+        maxResults: 1
+      })
+    })
+
+    if (contactResponse.ok) {
+      const contactJson = await contactResponse.json()
+      contactData = contactJson?.data?.[0] || null
+    }
+  }
+
+  return {
+    company: companyData,
+    contact: contactData,
+    source: 'zoominfo'
+  }
+}
+
+// Helper function to call Hunter.io API
+async function callHunterAPI(company) {
+  if (!company.website) {
+    return { message: 'No website available for Hunter.io lookup' }
+  }
+
+  // Get Hunter.io API key from database
+  const { data: apiKeyData } = await supabase
+    .from('api_keys')
+    .select('encrypted_key')
+    .eq('service', 'hunter')
+    .eq('status', 'Connected')
+    .single()
+
+  if (!apiKeyData?.encrypted_key) {
+    throw new Error('Hunter.io API key not configured')
+  }
+
+  const apiKey = apiKeyData.encrypted_key
+  const domain = company.website.replace('http://', '').replace('https://', '').split('/')[0]
+
+  const response = await fetch(
+    `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${apiKey}&limit=10`
+  )
+
+  if (!response.ok) {
+    throw new Error(`Hunter.io API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+
+  return {
+    emails: data.data?.emails || [],
+    domain: data.data?.domain || domain,
+    organization: data.data?.organization || null,
+    source: 'hunter'
+  }
+}
+
+// Helper function to call Apollo.io API
+async function callApolloAPI(company) {
+  // Get Apollo.io API key from database
+  const { data: apiKeyData } = await supabase
+    .from('api_keys')
+    .select('encrypted_key')
+    .eq('service', 'apollo')
+    .eq('status', 'Connected')
+    .single()
+
+  if (!apiKeyData?.encrypted_key) {
+    throw new Error('Apollo.io API key not configured')
+  }
+
+  const apiKey = apiKeyData.encrypted_key
+
+  // Search for organization
+  const response = await fetch('https://api.apollo.io/v1/organizations/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Api-Key': apiKey
+    },
+    body: JSON.stringify({
+      q_organization_name: company.name,
+      page: 1,
+      per_page: 1
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error(`Apollo.io API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+
+  return {
+    organizations: data.organizations || [],
+    source: 'apollo'
   }
 }
 
