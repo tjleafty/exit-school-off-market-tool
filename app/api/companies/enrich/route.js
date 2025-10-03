@@ -192,22 +192,40 @@ export async function POST(request) {
 async function callZoomInfoAPI(company) {
   console.log('callZoomInfoAPI: Starting for company:', company.name)
 
-  // Get ZoomInfo API key from database
+  // Get ZoomInfo credentials from database (username, client_id, private_key)
   const { data: apiKeyData, error: keyError } = await supabase
     .from('api_keys')
-    .select('encrypted_key')
+    .select('username, client_id, encrypted_key')
     .eq('service', 'zoominfo')
     .eq('status', 'Connected')
     .single()
 
-  console.log('API Key lookup result:', { hasKey: !!apiKeyData?.encrypted_key, error: keyError })
+  console.log('ZoomInfo credentials lookup result:', {
+    hasUsername: !!apiKeyData?.username,
+    hasClientId: !!apiKeyData?.client_id,
+    hasPrivateKey: !!apiKeyData?.encrypted_key,
+    error: keyError
+  })
 
-  if (!apiKeyData?.encrypted_key) {
-    throw new Error('ZoomInfo API key not configured')
+  if (!apiKeyData?.username || !apiKeyData?.client_id || !apiKeyData?.encrypted_key) {
+    throw new Error('ZoomInfo credentials not fully configured (requires username, client_id, and private_key)')
   }
 
-  const apiKey = apiKeyData.encrypted_key
-  console.log('Using API key (first 10 chars):', apiKey.substring(0, 10) + '...')
+  const { username, client_id, encrypted_key: privateKey } = apiKeyData
+  console.log('Using ZoomInfo JWT auth for user:', username, 'with client_id:', client_id)
+
+  // Generate JWT token using ZoomInfo's PKI authentication
+  const authClient = require('zoominfo-api-auth-client')
+  let accessToken
+
+  try {
+    console.log('Requesting JWT token from ZoomInfo...')
+    accessToken = await authClient.getAccessTokenViaPKI(username, client_id, privateKey)
+    console.log('JWT token obtained successfully')
+  } catch (authError) {
+    console.error('ZoomInfo JWT authentication failed:', authError)
+    throw new Error(`ZoomInfo JWT authentication failed: ${authError.message}`)
+  }
 
   // Search for company by name and website
   const requestBody = {
@@ -221,7 +239,7 @@ async function callZoomInfoAPI(company) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': `Bearer ${accessToken}`
     },
     body: JSON.stringify(requestBody)
   })
@@ -253,7 +271,7 @@ async function callZoomInfoAPI(company) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
         companyId: companyData.id,

@@ -9,7 +9,7 @@ export default function SystemSettingsPage() {
     google_places: { value: '', status: 'Not Connected' },
     hunter: { value: '', status: 'Not Connected' },
     apollo: { value: '', status: 'Not Connected' },
-    zoominfo: { value: '', status: 'Not Connected' },
+    zoominfo: { value: '', username: '', clientId: '', status: 'Not Connected' },
     resend: { value: '', status: 'Not Connected' },
   })
 
@@ -34,6 +34,8 @@ export default function SystemSettingsPage() {
                 if (updatedKeys[keyData.service]) {
                   updatedKeys[keyData.service] = {
                     value: keyData.encrypted_key || '',
+                    username: keyData.username || '',
+                    clientId: keyData.client_id || '',
                     status: keyData.status || 'Connected'
                   }
                 }
@@ -95,9 +97,10 @@ export default function SystemSettingsPage() {
     },
     zoominfo: {
       name: 'ZoomInfo API',
-      description: 'Business intelligence and contact data',
-      placeholder: 'zi-api-key...',
-      docs: 'https://api-docs.zoominfo.com/'
+      description: 'Business intelligence and contact data (requires Username, Client ID, and Private Key)',
+      placeholder: '-----BEGIN PRIVATE KEY-----...',
+      docs: 'https://api-docs.zoominfo.com/',
+      requiresJWT: true
     },
     resend: {
       name: 'Resend API',
@@ -107,10 +110,10 @@ export default function SystemSettingsPage() {
     }
   }
 
-  const handleApiKeyChange = (api, value) => {
+  const handleApiKeyChange = (api, value, field = 'value') => {
     setApiKeys(prev => ({
       ...prev,
-      [api]: { ...prev[api] || { value: '', status: 'Not Connected' }, value }
+      [api]: { ...prev[api] || { value: '', status: 'Not Connected' }, [field]: value }
     }))
   }
 
@@ -179,14 +182,22 @@ export default function SystemSettingsPage() {
 
   const saveApiKey = async (api) => {
     try {
+      const requestBody = {
+        service: api,
+        encrypted_key: apiKeys[api]?.value || '',
+        status: 'Saved'
+      }
+
+      // Add JWT auth fields for ZoomInfo
+      if (api === 'zoominfo') {
+        requestBody.username = apiKeys[api]?.username || ''
+        requestBody.client_id = apiKeys[api]?.clientId || ''
+      }
+
       const response = await fetch('/api/settings/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service: api,
-          encrypted_key: apiKeys[api]?.value || '',
-          status: 'Saved'
-        })
+        body: JSON.stringify(requestBody)
       })
       
       if (response.ok) {
@@ -422,15 +433,60 @@ export default function SystemSettingsPage() {
                   </div>
                   
                   <p className="text-gray-600 mb-4">{config.description}</p>
-                  
-                  <div className="flex space-x-3">
-                    <input
-                      type="password"
-                      placeholder={config.placeholder}
-                      value={apiKeys[key]?.value || ''}
-                      onChange={(e) => handleApiKeyChange(key, e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+
+                  {/* ZoomInfo requires additional JWT fields */}
+                  {config.requiresJWT && (
+                    <div className="mb-4 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Username <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Your ZoomInfo username"
+                          value={apiKeys[key]?.username || ''}
+                          onChange={(e) => handleApiKeyChange(key, e.target.value, 'username')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Client ID <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Client ID from ZoomInfo Admin Portal"
+                          value={apiKeys[key]?.clientId || ''}
+                          onChange={(e) => handleApiKeyChange(key, e.target.value, 'clientId')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Private Key <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          placeholder={config.placeholder}
+                          value={apiKeys[key]?.value || ''}
+                          onChange={(e) => handleApiKeyChange(key, e.target.value)}
+                          rows={6}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Standard API key input for other services */}
+                  <div className={`flex space-x-3 ${config.requiresJWT ? 'mt-2' : ''}`}>
+                    {!config.requiresJWT && (
+                      <input
+                        type="password"
+                        placeholder={config.placeholder}
+                        value={apiKeys[key]?.value || ''}
+                        onChange={(e) => handleApiKeyChange(key, e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    )}
                     <button
                       onClick={() => saveApiKey(key)}
                       disabled={!apiKeys[key]?.value}

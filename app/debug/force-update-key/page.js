@@ -5,12 +5,20 @@ import { useState } from 'react'
 export default function ForceUpdateKeyPage() {
   const [service, setService] = useState('zoominfo')
   const [apiKey, setApiKey] = useState('')
+  const [username, setUsername] = useState('')
+  const [clientId, setClientId] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const handleForceUpdate = async () => {
     if (!apiKey.trim()) {
-      alert('Please enter an API key')
+      alert('Please enter an API key / Private Key')
+      return
+    }
+
+    // ZoomInfo requires username and client_id
+    if (service === 'zoominfo' && (!username.trim() || !clientId.trim())) {
+      alert('ZoomInfo requires Username and Client ID in addition to the Private Key')
       return
     }
 
@@ -18,10 +26,18 @@ export default function ForceUpdateKeyPage() {
     setResult(null)
 
     try {
+      const requestBody = { service, apiKey }
+
+      // Add JWT auth fields for ZoomInfo
+      if (service === 'zoominfo') {
+        requestBody.username = username
+        requestBody.clientId = clientId
+      }
+
       const response = await fetch('/api/debug/force-update-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ service, apiKey })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -70,16 +86,46 @@ export default function ForceUpdateKeyPage() {
               </select>
             </div>
 
+            {service === 'zoominfo' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your ZoomInfo username..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client ID
+                  </label>
+                  <input
+                    type="text"
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    placeholder="Enter your ZoomInfo Client ID..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                API Key
+                {service === 'zoominfo' ? 'Private Key' : 'API Key'}
               </label>
-              <input
-                type="password"
+              <textarea
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={service === 'zoominfo' ? 'Paste your ZoomInfo private key (including BEGIN/END markers)...' : 'Enter your API key...'}
+                rows={service === 'zoominfo' ? 10 : 3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
               />
             </div>
 
@@ -112,6 +158,23 @@ export default function ForceUpdateKeyPage() {
               <li>Returns a preview of the saved key for confirmation</li>
             </ul>
           </div>
+
+          {service === 'zoominfo' && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <h4 className="text-sm font-medium text-yellow-900 mb-2">⚠️ ZoomInfo Requirements:</h4>
+              <p className="text-sm text-yellow-800 mb-2">
+                ZoomInfo uses JWT authentication which requires three pieces of information:
+              </p>
+              <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+                <li><strong>Username</strong>: Your ZoomInfo account username</li>
+                <li><strong>Client ID</strong>: Found in ZoomInfo Admin Portal → Integrations → API & Webhooks</li>
+                <li><strong>Private Key</strong>: Multi-line RSA private key (starts with -----BEGIN PRIVATE KEY-----)</li>
+              </ul>
+              <p className="text-sm text-yellow-800 mt-2">
+                To generate credentials: Go to ZoomInfo Admin Portal → Integrations → API & Webhooks → Generate New Token
+              </p>
+            </div>
+          )}
 
           <div className="mt-4 text-center">
             <a href="/dashboard/admin/settings" className="text-blue-600 hover:text-blue-700 text-sm">

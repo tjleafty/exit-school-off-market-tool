@@ -6,11 +6,11 @@ export async function GET() {
   try {
     const { data, error } = await supabase
       .from('api_keys')
-      .select('service, encrypted_key, status, created_at')
+      .select('service, encrypted_key, username, client_id, status, created_at')
       .order('service')
-    
+
     if (error) throw error
-    
+
     return NextResponse.json(data || [])
   } catch (error) {
     console.error('Error fetching API keys:', error)
@@ -25,34 +25,38 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { service, encrypted_key, status = 'Saved' } = body
-    
+    const { service, encrypted_key, username, client_id, status = 'Saved' } = body
+
     if (!service || !encrypted_key) {
       return NextResponse.json(
         { error: 'Service and API key are required' },
         { status: 400 }
       )
     }
-    
+
+    // Prepare upsert data - include username and client_id if provided
+    const upsertData = {
+      service,
+      encrypted_key,
+      status,
+      updated_at: new Date().toISOString()
+    }
+
+    // Add optional JWT auth fields if provided (for services like ZoomInfo)
+    if (username !== undefined) upsertData.username = username
+    if (client_id !== undefined) upsertData.client_id = client_id
+
     // Use upsert to update if exists, insert if not
     const { data, error } = await supabase
       .from('api_keys')
-      .upsert(
-        {
-          service,
-          encrypted_key,
-          status,
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'service' }
-      )
+      .upsert(upsertData, { onConflict: 'service' })
       .select()
-    
+
     if (error) throw error
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       message: 'API key saved successfully',
-      data 
+      data
     })
   } catch (error) {
     console.error('Error saving API key:', error)

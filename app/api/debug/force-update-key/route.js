@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { service, apiKey } = body
+    const { service, apiKey, username, clientId } = body
 
     if (!service || !apiKey) {
       return NextResponse.json({
@@ -35,17 +35,23 @@ export async function POST(request) {
     // Step 2: Wait a moment to ensure delete is committed
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    // Step 3: Insert fresh new key
+    // Step 3: Insert fresh new key with optional JWT auth fields
     console.log(`Step 2: Inserting fresh ${service} key...`)
-    const { data: insertData, error: insertError } = await supabase
+    const insertData = {
+      service: service,
+      encrypted_key: apiKey,
+      status: 'Connected',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    // Add JWT auth fields if provided (for services like ZoomInfo)
+    if (username) insertData.username = username
+    if (clientId) insertData.client_id = clientId
+
+    const { data: inserted, error: insertError } = await supabase
       .from('api_keys')
-      .insert({
-        service: service,
-        encrypted_key: apiKey,
-        status: 'Connected',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(insertData)
       .select()
 
     if (insertError) {
@@ -63,7 +69,7 @@ export async function POST(request) {
     console.log('Step 3: Verifying new key...')
     const { data: verifyData, error: verifyError } = await supabase
       .from('api_keys')
-      .select('service, status, encrypted_key')
+      .select('service, status, encrypted_key, username, client_id')
       .eq('service', service)
       .single()
 
@@ -79,13 +85,19 @@ export async function POST(request) {
     const keyPreview = verifyData.encrypted_key.substring(0, 20) + '...'
     console.log('✓ Verified key in database:', keyPreview)
 
-    return NextResponse.json({
+    const response = {
       success: true,
       message: `${service} API key force-updated successfully`,
       keyPreview: keyPreview,
       status: verifyData.status,
       timestamp: new Date().toISOString()
-    })
+    }
+
+    // Add JWT auth fields to response if present
+    if (verifyData.username) response.username = verifyData.username
+    if (verifyData.client_id) response.clientIdPreview = verifyData.client_id.substring(0, 10) + '...'
+
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Force update error:', error)
