@@ -220,7 +220,7 @@ function generateMainSheetData(companies, exportDate) {
 
 function generateZoomInfoSheetData(companies, exportDate) {
   const reportInfo = [
-    ['ZoomInfo Enrichment Data'],
+    ['ZoomInfo Enrichment Data - All 61 Fields'],
     [''],
     ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
     ['Data Date:', exportDate.toLocaleDateString()],
@@ -228,18 +228,92 @@ function generateZoomInfoSheetData(companies, exportDate) {
     ['']
   ]
 
+  // All 61 ZoomInfo fields organized by category
   const headers = [
+    // Internal Reference
     'Company Name',
     'Company ID',
-    'ZoomInfo Company ID',
-    'Company Website',
+
+    // Contact Information (Basic)
+    'Last Name',
+    'First Name',
+    'Job Title',
+    'Direct Phone',
+    'Email Address',
+    'Mobile Phone',
+
+    // Contact Extended (Enhanced)
+    'Job Title Hierarchy Level',
+    'Management Level',
+    'Job Start Date',
+    'Job Function',
+    'Department',
+    'LinkedIn Contact Profile',
+
+    // Company Basic Information
+    'Company Name (ZI)',
+    'Website',
     'Company Phone',
-    'Revenue',
+    'Company Description',
+
+    // Company Extended (Enhanced)
+    'ZoomInfo Company ID',
+    'Founded Year',
+    'Fax Number',
+    'Stock Ticker',
+    'Alexa Rank',
+    'ZoomInfo Profile URL',
+    'Certified Active',
+    'Certification Date',
+
+    // Financial Information (Enhanced)
+    'Revenue (USD)',
+    'Revenue Range',
+    'Marketing Budget',
+    'Finance Budget',
+    'IT Budget',
+    'HR Budget',
+    'Total Funding',
+    'Recent Funding Amount',
+    'Recent Funding Round',
+    'Recent Funding Date',
+    'Recent Investors',
+    'All Investors',
+
+    // Firmographics
     'Employee Count',
-    'Contact Name',
-    'Contact Email',
-    'Contact Phone',
-    'Contact Title',
+    'Employee Range',
+    'Employee Growth (1 Year)',
+    'Employee Growth (2 Years)',
+    'Ownership Type',
+    'Business Model',
+    'Number of Locations',
+
+    // Industry Classification
+    'Primary Industry',
+    'Primary Sub-Industry',
+    'All Industries',
+    'All Sub-Industries',
+    'Industry Category',
+    'SIC Code (Primary)',
+    'SIC Codes (All)',
+    'NAICS Code (Primary)',
+    'NAICS Codes (All)',
+
+    // Location Information
+    'Street Address',
+    'City',
+    'State',
+    'Zip Code',
+    'Country',
+    'Full Address',
+
+    // Social Media (Enhanced)
+    'LinkedIn Company URL',
+    'Facebook Page',
+    'Twitter Profile',
+
+    // Metadata
     'Enriched At',
     'Data Source'
   ]
@@ -252,24 +326,97 @@ function generateZoomInfoSheetData(companies, exportDate) {
       const contactData = zoomData.contact || {}
 
       return [
+        // Internal Reference
         company.name || 'N/A',
         company.id || '',
-        companyData.id || 'Not Available',
-        companyData.website || company.website || 'Not Available',
-        companyData.phone || 'Not Available',
-        companyData.revenue || 'Not Available',
-        companyData.employees || companyData.employeeCount || 'Not Available',
-        contactData.firstName && contactData.lastName ? `${contactData.firstName} ${contactData.lastName}` : 'Not Available',
+
+        // Contact Information (Basic)
+        contactData.lastName || contactData.last_name || 'Not Available',
+        contactData.firstName || contactData.first_name || 'Not Available',
+        contactData.jobTitle || contactData.title || 'Not Available',
+        contactData.directPhone || contactData.direct_phone || 'Not Available',
         contactData.email || 'Not Available',
-        contactData.directPhone || contactData.phone || 'Not Available',
-        contactData.title || contactData.jobTitle || 'Not Available',
+        contactData.mobilePhone || contactData.mobile_phone || 'Not Available',
+
+        // Contact Extended (Enhanced)
+        contactData.jobTitleHierarchyLevel || contactData.job_title_hierarchy_level || 'Not Available',
+        contactData.managementLevel || contactData.management_level || 'Not Available',
+        contactData.jobStartDate || contactData.job_start_date || 'Not Available',
+        contactData.jobFunction || contactData.job_function || 'Not Available',
+        contactData.department || 'Not Available',
+        contactData.linkedinUrl || contactData.linkedin_url || 'Not Available',
+
+        // Company Basic Information
+        companyData.name || companyData.companyName || 'Not Available',
+        companyData.website || companyData.websiteUrl || 'Not Available',
+        companyData.phone || companyData.companyPhone || 'Not Available',
+        companyData.description || companyData.companyDescription || 'Not Available',
+
+        // Company Extended (Enhanced)
+        companyData.id || companyData.companyId || 'Not Available',
+        companyData.foundedYear || companyData.founded_year || 'Not Available',
+        companyData.fax || 'Not Available',
+        companyData.ticker || companyData.stockTicker || 'Not Available',
+        companyData.alexaRank || companyData.alexa_rank || 'Not Available',
+        companyData.zoomInfoUrl || companyData.zoominfo_url || 'Not Available',
+        companyData.certifiedActive || companyData.certified_active || 'Not Available',
+        companyData.certificationDate || companyData.certification_date || 'Not Available',
+
+        // Financial Information (Enhanced)
+        companyData.revenue || companyData.revenueUsd || 'Not Available',
+        companyData.revenueRange || companyData.revenue_range || 'Not Available',
+        companyData.marketingBudget || companyData.marketing_budget || 'Not Available',
+        companyData.financeBudget || companyData.finance_budget || 'Not Available',
+        companyData.itBudget || companyData.it_budget || 'Not Available',
+        companyData.hrBudget || companyData.hr_budget || 'Not Available',
+        companyData.totalFunding || companyData.total_funding || 'Not Available',
+        companyData.recentFundingAmount || companyData.recent_funding_amount || 'Not Available',
+        companyData.recentFundingRound || companyData.recent_funding_round || 'Not Available',
+        companyData.recentFundingDate || companyData.recent_funding_date || 'Not Available',
+        companyData.recentInvestors || companyData.recent_investors || 'Not Available',
+        companyData.allInvestors || companyData.all_investors || 'Not Available',
+
+        // Firmographics
+        companyData.employees || companyData.employeeCount || companyData.employee_count || 'Not Available',
+        companyData.employeeRange || companyData.employee_range || 'Not Available',
+        companyData.employeeGrowth1Yr || companyData.employee_growth_1yr || 'Not Available',
+        companyData.employeeGrowth2Yr || companyData.employee_growth_2yr || 'Not Available',
+        companyData.ownershipType || companyData.ownership_type || 'Not Available',
+        companyData.businessModel || companyData.business_model || 'Not Available',
+        companyData.numberOfLocations || companyData.number_of_locations || 'Not Available',
+
+        // Industry Classification
+        companyData.primaryIndustry || companyData.primary_industry || companyData.industry || 'Not Available',
+        companyData.primarySubIndustry || companyData.primary_sub_industry || 'Not Available',
+        companyData.allIndustries || companyData.all_industries || 'Not Available',
+        companyData.allSubIndustries || companyData.all_sub_industries || 'Not Available',
+        companyData.industryCategory || companyData.industry_category || 'Not Available',
+        companyData.sicCode1 || companyData.sic_code_1 || 'Not Available',
+        companyData.sicCodes || companyData.sic_codes || 'Not Available',
+        companyData.naicsCode1 || companyData.naics_code_1 || 'Not Available',
+        companyData.naicsCodes || companyData.naics_codes || 'Not Available',
+
+        // Location Information
+        companyData.street || companyData.streetAddress || companyData.street_address || 'Not Available',
+        companyData.city || 'Not Available',
+        companyData.state || 'Not Available',
+        companyData.zip || companyData.zipCode || companyData.zip_code || 'Not Available',
+        companyData.country || 'Not Available',
+        companyData.fullAddress || companyData.full_address || 'Not Available',
+
+        // Social Media (Enhanced)
+        companyData.linkedinUrl || companyData.linkedin_url || 'Not Available',
+        companyData.facebookUrl || companyData.facebook_url || 'Not Available',
+        companyData.twitterUrl || companyData.twitter_url || 'Not Available',
+
+        // Metadata
         company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
         zoomData.source || 'zoominfo'
       ]
     })
 
   if (dataRows.length === 0) {
-    dataRows.push(['No ZoomInfo data available', '', '', '', '', '', '', '', '', '', '', '', ''])
+    dataRows.push(['No ZoomInfo data available', ...Array(headers.length - 1).fill('')])
   }
 
   return [...reportInfo, headers, ...dataRows]
