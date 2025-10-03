@@ -103,8 +103,7 @@ export async function GET() {
         'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
-        companyName: testCompany,
-        maxResults: 1
+        companyName: testCompany
       })
     })
 
