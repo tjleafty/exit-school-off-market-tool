@@ -423,7 +423,7 @@ export default function CompanyManagementPage() {
         } else {
           // Update the company in saved companies list
           setSavedCompanies(prev =>
-            prev.map(c => c.id === company.id ? result.data : c)
+            prev.map(c => c.id === company.id ? { ...c, is_enriched: true, ...result.data } : c)
           )
         }
 
