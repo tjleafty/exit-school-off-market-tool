@@ -84,6 +84,7 @@ export default function CompanyManagementPage() {
       const response = await fetch(`/api/companies/list?userId=${user?.id}`)
 
       const data = await response.json()
+      console.log('API Response:', data)
 
       if (data.success) {
         console.log('Total companies from API:', data.companies.length)
