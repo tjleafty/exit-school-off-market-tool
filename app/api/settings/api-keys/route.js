@@ -4,10 +4,23 @@ import { supabase } from '../../../../lib/supabase'
 // GET - Retrieve all API keys
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    // Try to select with JWT fields first (if migration has run)
+    let { data, error } = await supabase
       .from('api_keys')
       .select('service, encrypted_key, username, client_id, status, created_at')
       .order('service')
+
+    // If error due to missing columns, fall back to basic fields
+    if (error && error.message?.includes('column')) {
+      console.log('JWT columns not yet available, using basic fields')
+      const fallback = await supabase
+        .from('api_keys')
+        .select('service, encrypted_key, status, created_at')
+        .order('service')
+
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) throw error
 
@@ -43,14 +56,34 @@ export async function POST(request) {
     }
 
     // Add optional JWT auth fields if provided (for services like ZoomInfo)
+    // Only add if the columns exist in the database
     if (username !== undefined) upsertData.username = username
     if (client_id !== undefined) upsertData.client_id = client_id
 
     // Use upsert to update if exists, insert if not
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('api_keys')
       .upsert(upsertData, { onConflict: 'service' })
       .select()
+
+    // If error due to missing columns, try without JWT fields
+    if (error && error.message?.includes('column')) {
+      console.log('JWT columns not yet available, saving without them')
+      const basicData = {
+        service,
+        encrypted_key,
+        status,
+        updated_at: new Date().toISOString()
+      }
+
+      const retry = await supabase
+        .from('api_keys')
+        .upsert(basicData, { onConflict: 'service' })
+        .select()
+
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) throw error
 
