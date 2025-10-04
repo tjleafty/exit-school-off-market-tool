@@ -933,6 +933,34 @@ export default function CompanyManagementPage() {
                         >
                           🔍 Enrich Selected ({savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && !c?.is_enriched).length})
                         </button>
+                        <button
+                          onClick={async () => {
+                            const alreadyEnrichedCompanies = savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && c?.is_enriched);
+
+                            if (alreadyEnrichedCompanies.length === 0) return;
+
+                            const confirmed = window.confirm(
+                              `Re-enrich ${alreadyEnrichedCompanies.length} already enriched ${alreadyEnrichedCompanies.length === 1 ? 'company' : 'companies'}?\n\n` +
+                              `This will update their enrichment data and may consume API credits.`
+                            );
+
+                            if (!confirmed) return;
+
+                            for (const company of alreadyEnrichedCompanies) {
+                              await enrichCompany(company, false);
+                              // Add delay to avoid rate limiting
+                              await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                          }}
+                          disabled={
+                            selectedSavedCompanies.size === 0 ||
+                            enrichingCompany !== null ||
+                            savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && c?.is_enriched).length === 0
+                          }
+                          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          🔄 Re-enrich Selected ({savedCompanies.filter(c => selectedSavedCompanies.has(c.id) && c?.is_enriched).length})
+                        </button>
                       </>
                     )}
                     {historicalCompanies.length > 0 && (
