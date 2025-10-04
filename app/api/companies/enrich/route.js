@@ -232,43 +232,69 @@ async function callZoomInfoAPI(company) {
   accessToken = tokenResult
   console.log('JWT token obtained successfully')
 
-  // Search for company by name and website
-  const requestBody = {
-    companyName: company.name
-  }
+  // Try multiple search strategies to find the company
+  let searchData = null
+  let parsedHostname = null
 
-  // Add website if available (use companyWebsite, not websiteDomain)
+  // Parse website if available
   if (company.website) {
     try {
-      const parsedHostname = new URL(company.website).hostname
-      requestBody.companyWebsite = parsedHostname
+      parsedHostname = new URL(company.website).hostname
       console.log('Parsed website from', company.website, 'to', parsedHostname)
     } catch (e) {
       console.log('Could not parse website URL:', company.website)
     }
   }
 
-  console.log('ZoomInfo company search request:', JSON.stringify(requestBody))
+  // Strategy 1: Search by website only (most accurate)
+  if (parsedHostname) {
+    const websiteOnlyRequest = { companyWebsite: parsedHostname }
+    console.log('ZoomInfo search strategy 1 (website only):', JSON.stringify(websiteOnlyRequest))
 
-  const searchResponse = await fetch('https://api.zoominfo.com/search/company', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
-    },
-    body: JSON.stringify(requestBody)
-  })
+    const websiteResponse = await fetch('https://api.zoominfo.com/search/company', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(websiteOnlyRequest)
+    })
 
-  console.log('ZoomInfo company search response status:', searchResponse.status)
+    console.log('Strategy 1 response status:', websiteResponse.status)
 
-  if (!searchResponse.ok) {
-    const errorText = await searchResponse.text()
-    console.error('ZoomInfo API error response:', errorText)
-    throw new Error(`ZoomInfo API error: ${searchResponse.status} - ${errorText}`)
+    if (websiteResponse.ok) {
+      searchData = await websiteResponse.json()
+      console.log('Strategy 1 results:', searchData?.data?.length || 0, 'companies found')
+    }
   }
 
-  const searchData = await searchResponse.json()
-  console.log('ZoomInfo company search data:', JSON.stringify(searchData, null, 2))
+  // Strategy 2: Search by name only if website search didn't work
+  if (!searchData?.data || searchData.data.length === 0) {
+    const nameOnlyRequest = { companyName: company.name }
+    console.log('ZoomInfo search strategy 2 (name only):', JSON.stringify(nameOnlyRequest))
+
+    const nameResponse = await fetch('https://api.zoominfo.com/search/company', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(nameOnlyRequest)
+    })
+
+    console.log('Strategy 2 response status:', nameResponse.status)
+
+    if (!nameResponse.ok) {
+      const errorText = await nameResponse.text()
+      console.error('ZoomInfo API error response:', errorText)
+      throw new Error(`ZoomInfo API error: ${nameResponse.status} - ${errorText}`)
+    }
+
+    searchData = await nameResponse.json()
+    console.log('Strategy 2 results:', searchData?.data?.length || 0, 'companies found')
+  }
+
+  console.log('Final ZoomInfo company search data:', JSON.stringify(searchData, null, 2))
 
   if (!searchData?.data || searchData.data.length === 0) {
     console.log('No company found in ZoomInfo for:', company.name)
