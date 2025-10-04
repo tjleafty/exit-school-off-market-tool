@@ -320,12 +320,40 @@ function generateZoomInfoSheetData(companies, exportDate) {
 
   const dataRows = companies
     .filter(c => c.enrichment_data?.zoominfo_data && Object.keys(c.enrichment_data.zoominfo_data).length > 0)
-    .map(company => {
+    .flatMap(company => {
       const zoomData = company.enrichment_data?.zoominfo_data || {}
       const companyData = zoomData.company || {}
-      const contactData = zoomData.contact || {}
+      const contactsArray = zoomData.contacts || (zoomData.contact ? [zoomData.contact] : [])
 
-      return [
+      // If no contacts, create one row with company data only
+      if (contactsArray.length === 0) {
+        return [[
+          // Internal Reference
+          company.name || 'N/A',
+          company.id || '',
+
+          // Contact Information (Basic) - empty if no contacts
+          'Not Available',
+          'Not Available',
+          'Not Available',
+          'Not Available',
+          'Not Available',
+          'Not Available',
+
+          // Contact Extended (Enhanced) - empty if no contacts
+          'Not Available',
+          'Not Available',
+          'Not Available',
+          'Not Available',
+          'Not Available',
+          'Not Available',
+
+          ...getCompanyDataRow(company, companyData)
+        ]]
+      }
+
+      // Create one row per contact
+      return contactsArray.map(contactData => [
         // Internal Reference
         company.name || 'N/A',
         company.id || '',
@@ -345,6 +373,14 @@ function generateZoomInfoSheetData(companies, exportDate) {
         contactData.jobFunction || contactData.job_function || 'Not Available',
         contactData.department || 'Not Available',
         contactData.linkedinUrl || contactData.linkedin_url || 'Not Available',
+
+        ...getCompanyDataRow(company, companyData)
+      ])
+    })
+
+  // Helper function to extract company data row
+  function getCompanyDataRow(company, companyData) {
+    return [
 
         // Company Basic Information
         companyData.name || companyData.companyName || 'Not Available',
@@ -412,8 +448,8 @@ function generateZoomInfoSheetData(companies, exportDate) {
         // Metadata
         company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
         zoomData.source || 'zoominfo'
-      ]
-    })
+    ]
+  }
 
   if (dataRows.length === 0) {
     dataRows.push(['No ZoomInfo data available', ...Array(headers.length - 1).fill('')])

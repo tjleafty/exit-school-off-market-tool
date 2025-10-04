@@ -361,10 +361,10 @@ async function callZoomInfoAPI(company) {
     }
   }
 
-  // Get contact information
-  let contactData = null
+  // Get contact information (top 10 executives)
+  let contactData = []
   if (companySearchResult.id) {
-    console.log('Fetching contact for company ID:', companySearchResult.id)
+    console.log('Fetching contacts for company ID:', companySearchResult.id)
     const contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
       method: 'POST',
       headers: {
@@ -373,7 +373,9 @@ async function callZoomInfoAPI(company) {
       },
       body: JSON.stringify({
         companyId: companySearchResult.id.toString(),
-        managementLevel: 'C Level Exec,VP Level Exec'
+        managementLevel: 'C Level Exec,VP Level Exec,Director',
+        page: 1,
+        rpp: 10
       })
     })
 
@@ -382,7 +384,8 @@ async function callZoomInfoAPI(company) {
     if (contactResponse.ok) {
       const contactJson = await contactResponse.json()
       console.log('ZoomInfo contact data:', JSON.stringify(contactJson, null, 2))
-      contactData = contactJson?.data?.[0] || null
+      console.log('Found', contactJson?.data?.length || 0, 'contacts')
+      contactData = contactJson?.data || []
     } else {
       const errorText = await contactResponse.text()
       console.error('ZoomInfo contact API error:', errorText)
@@ -391,7 +394,7 @@ async function callZoomInfoAPI(company) {
 
   const result = {
     company: enrichedCompanyData,
-    contact: contactData,
+    contacts: contactData,
     source: 'zoominfo'
   }
 
