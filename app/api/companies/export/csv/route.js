@@ -866,6 +866,7 @@ function formatDate(dateString) {
   }
 }
 
+// Helper function to format SIC/NAICS code arrays from ZoomInfo
 function formatCodeArray(codes) {
   if (!Array.isArray(codes) || codes.length === 0) return 'Not Available'
   return codes.map(code => `${code.id} - ${code.name}`).join('; ')
