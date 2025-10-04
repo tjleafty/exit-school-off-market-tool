@@ -319,25 +319,23 @@ async function callZoomInfoAPI(company) {
         companyId: companySearchResult.id
       }],
       outputFields: [
-        // Basic Company Info
+        // Basic Company Info (API allowed only)
         'id', 'name', 'website', 'phone', 'fax', 'ticker', 'foundedYear',
 
         // Financial
         'revenue', 'revenueRange',
 
-        // Firmographics
-        'employees', 'employeesRange', 'ownershipType', 'businessModel',
-        'certifiedActive', 'certificationDate', 'numberOfLocations',
+        // Firmographics (limited by API license)
+        'businessModel', 'certificationDate',
 
-        // Industry
-        'sicCodes', 'naicsCodes', 'primaryIndustry', 'primarySubIndustry',
-        'allIndustries', 'allSubIndustries', 'industryCategory',
+        // Industry (only fields API allows)
+        'sicCodes', 'naicsCodes', 'primaryIndustry',
 
         // Location
-        'street', 'city', 'state', 'zipCode', 'country', 'fullAddress',
+        'street', 'city', 'state', 'zipCode', 'country',
 
-        // Social/Web
-        'linkedinUrl', 'facebookUrl', 'twitterUrl', 'alexaRank', 'zoomInfoUrl'
+        // Web
+        'alexaRank'
       ]
     })
   })
@@ -375,7 +373,7 @@ async function callZoomInfoAPI(company) {
       },
       body: JSON.stringify({
         companyId: companySearchResult.id.toString(),
-        managementLevel: 'C-Level'
+        managementLevel: 'C Level Exec,VP Level Exec'
       })
     })
 
