@@ -391,10 +391,10 @@ function generateZoomInfoSheetData(companies, exportDate) {
         companyData.allIndustries || companyData.all_industries || 'Not Available',
         companyData.allSubIndustries || companyData.all_sub_industries || 'Not Available',
         companyData.industryCategory || companyData.industry_category || 'Not Available',
-        companyData.sicCode1 || companyData.sic_code_1 || 'Not Available',
-        companyData.sicCodes || companyData.sic_codes || 'Not Available',
-        companyData.naicsCode1 || companyData.naics_code_1 || 'Not Available',
-        companyData.naicsCodes || companyData.naics_codes || 'Not Available',
+        companyData.sicCode1 || companyData.sic_code_1 || (Array.isArray(companyData.sicCodes) && companyData.sicCodes[0] ? `${companyData.sicCodes[0].id} - ${companyData.sicCodes[0].name}` : 'Not Available'),
+        formatCodeArray(companyData.sicCodes || companyData.sic_codes),
+        companyData.naicsCode1 || companyData.naics_code_1 || (Array.isArray(companyData.naicsCodes) && companyData.naicsCodes[0] ? `${companyData.naicsCodes[0].id} - ${companyData.naicsCodes[0].name}` : 'Not Available'),
+        formatCodeArray(companyData.naicsCodes || companyData.naics_codes),
 
         // Location Information
         companyData.street || companyData.streetAddress || companyData.street_address || 'Not Available',
@@ -857,11 +857,16 @@ function formatDate(dateString) {
   if (!dateString) return 'Not Available'
   try {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US') + ' ' + date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleDateString('en-US') + ' ' + date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     })
   } catch {
     return dateString
   }
+}
+
+function formatCodeArray(codes) {
+  if (!Array.isArray(codes) || codes.length === 0) return 'Not Available'
+  return codes.map(code => `${code.id} - ${code.name}`).join('; ')
 }
