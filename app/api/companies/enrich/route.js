@@ -301,13 +301,49 @@ async function callZoomInfoAPI(company) {
     return { message: 'No company found in ZoomInfo' }
   }
 
-  const companyData = searchData.data[0]
-  console.log('Found company in ZoomInfo:', companyData.id, companyData.name)
+  const companySearchResult = searchData.data[0]
+  console.log('Found company in ZoomInfo search:', companySearchResult.id, companySearchResult.name)
+
+  // Step 2: Use the Enrich endpoint to get full company details
+  console.log('Enriching company with ID:', companySearchResult.id)
+  const enrichResponse = await fetch('https://api.zoominfo.com/enrich/company', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({
+      matchCompanyInput: [{
+        companyId: companySearchResult.id
+      }]
+    })
+  })
+
+  console.log('ZoomInfo enrich response status:', enrichResponse.status)
+
+  if (!enrichResponse.ok) {
+    const errorText = await enrichResponse.text()
+    console.error('ZoomInfo enrich API error:', errorText)
+    // Fall back to search results if enrich fails
+    console.log('Falling back to search results')
+  }
+
+  let enrichedCompanyData = companySearchResult
+  if (enrichResponse.ok) {
+    const enrichData = await enrichResponse.json()
+    console.log('ZoomInfo enriched company data received:', JSON.stringify(enrichData, null, 2))
+
+    // The enrich endpoint returns data in outputCompanies array
+    if (enrichData?.data?.outputCompanies && enrichData.data.outputCompanies.length > 0) {
+      enrichedCompanyData = enrichData.data.outputCompanies[0]
+      console.log('Using enriched company data with', Object.keys(enrichedCompanyData).length, 'fields')
+    }
+  }
 
   // Get contact information
   let contactData = null
-  if (companyData.id) {
-    console.log('Fetching contact for company ID:', companyData.id)
+  if (companySearchResult.id) {
+    console.log('Fetching contact for company ID:', companySearchResult.id)
     const contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
       method: 'POST',
       headers: {
@@ -315,9 +351,8 @@ async function callZoomInfoAPI(company) {
         'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
-        companyId: companyData.id,
-        managementLevel: ['Owner', 'C-Level', 'VP'],
-        maxResults: 1
+        companyId: companySearchResult.id,
+        managementLevel: ['Owner', 'C-Level', 'VP']
       })
     })
 
@@ -334,12 +369,12 @@ async function callZoomInfoAPI(company) {
   }
 
   const result = {
-    company: companyData,
+    company: enrichedCompanyData,
     contact: contactData,
     source: 'zoominfo'
   }
 
-  console.log('Returning ZoomInfo data with fields:', Object.keys(companyData))
+  console.log('Returning ZoomInfo data with fields:', Object.keys(enrichedCompanyData))
   return result
 }
 
