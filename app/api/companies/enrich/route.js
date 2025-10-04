@@ -358,8 +358,8 @@ async function callZoomInfoAPI(company) {
         'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify({
-        companyId: companySearchResult.id,
-        managementLevel: ['Owner', 'C-Level', 'VP']
+        companyId: companySearchResult.id.toString(),
+        managementLevel: 'C-Level'
       })
     })
 
