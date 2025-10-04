@@ -240,13 +240,15 @@ async function callZoomInfoAPI(company) {
   // Add website if available (use companyWebsite, not websiteDomain)
   if (company.website) {
     try {
-      requestBody.companyWebsite = new URL(company.website).hostname
+      const parsedHostname = new URL(company.website).hostname
+      requestBody.companyWebsite = parsedHostname
+      console.log('Parsed website from', company.website, 'to', parsedHostname)
     } catch (e) {
       console.log('Could not parse website URL:', company.website)
     }
   }
 
-  console.log('ZoomInfo company search request:', requestBody)
+  console.log('ZoomInfo company search request:', JSON.stringify(requestBody))
 
   const searchResponse = await fetch('https://api.zoominfo.com/search/company', {
     method: 'POST',
