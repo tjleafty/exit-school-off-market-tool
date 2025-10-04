@@ -306,6 +306,8 @@ async function callZoomInfoAPI(company) {
 
   // Step 2: Use the Enrich endpoint to get full company details
   console.log('Enriching company with ID:', companySearchResult.id)
+
+  // Request all available company fields
   const enrichResponse = await fetch('https://api.zoominfo.com/enrich/company', {
     method: 'POST',
     headers: {
@@ -315,7 +317,16 @@ async function callZoomInfoAPI(company) {
     body: JSON.stringify({
       matchCompanyInput: [{
         companyId: companySearchResult.id
-      }]
+      }],
+      outputFields: [
+        'id', 'name', 'website', 'phone', 'revenue', 'revenueRange',
+        'employees', 'employeesRange', 'industry', 'subIndustry',
+        'sicCodes', 'naicsCodes', 'primarySicCode', 'primaryNaicsCode',
+        'street', 'city', 'state', 'zipCode', 'country',
+        'description', 'founded', 'ticker', 'exchange',
+        'facebookUrl', 'twitterUrl', 'linkedInUrl',
+        'technologies', 'keywords', 'emailDomain'
+      ]
     })
   })
 
