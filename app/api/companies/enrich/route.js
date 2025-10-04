@@ -319,9 +319,25 @@ async function callZoomInfoAPI(company) {
         companyId: companySearchResult.id
       }],
       outputFields: [
-        'id', 'name', 'website', 'phone', 'revenue', 'revenueRange',
-        'sicCodes', 'naicsCodes', 'street', 'city', 'state', 'zipCode',
-        'country', 'ticker'
+        // Basic Company Info
+        'id', 'name', 'website', 'phone', 'fax', 'ticker', 'foundedYear',
+
+        // Financial
+        'revenue', 'revenueRange',
+
+        // Firmographics
+        'employees', 'employeesRange', 'ownershipType', 'businessModel',
+        'certifiedActive', 'certificationDate', 'numberOfLocations',
+
+        // Industry
+        'sicCodes', 'naicsCodes', 'primaryIndustry', 'primarySubIndustry',
+        'allIndustries', 'allSubIndustries', 'industryCategory',
+
+        // Location
+        'street', 'city', 'state', 'zipCode', 'country', 'fullAddress',
+
+        // Social/Web
+        'linkedinUrl', 'facebookUrl', 'twitterUrl', 'alexaRank', 'zoomInfoUrl'
       ]
     })
   })
