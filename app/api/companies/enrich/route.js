@@ -340,9 +340,9 @@ async function callZoomInfoAPI(company) {
     const enrichData = await enrichResponse.json()
     console.log('ZoomInfo enriched company data received:', JSON.stringify(enrichData, null, 2))
 
-    // The enrich endpoint returns data in outputCompanies array
-    if (enrichData?.data?.outputCompanies && enrichData.data.outputCompanies.length > 0) {
-      enrichedCompanyData = enrichData.data.outputCompanies[0]
+    // The enrich endpoint returns data in result[0].data[0] structure
+    if (enrichData?.data?.result && enrichData.data.result.length > 0 && enrichData.data.result[0].data && enrichData.data.result[0].data.length > 0) {
+      enrichedCompanyData = enrichData.data.result[0].data[0]
       console.log('Using enriched company data with', Object.keys(enrichedCompanyData).length, 'fields')
     }
   }
