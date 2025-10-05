@@ -106,8 +106,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('CSV export error:', error)
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { error: 'Failed to export CSV' },
+      { error: 'Failed to export CSV', details: error.message },
       { status: 500 }
     )
   }
