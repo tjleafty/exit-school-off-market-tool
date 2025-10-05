@@ -350,7 +350,7 @@ function generateZoomInfoSheetData(companies, exportDate) {
           'Not Available',
           'Not Available',
 
-          ...getCompanyDataRow(company, companyData)
+          ...getCompanyDataRow(company, companyData, zoomData)
         ]]
       }
 
@@ -376,12 +376,12 @@ function generateZoomInfoSheetData(companies, exportDate) {
         contactData.department || 'Not Available',
         contactData.linkedinUrl || contactData.linkedin_url || 'Not Available',
 
-        ...getCompanyDataRow(company, companyData)
+        ...getCompanyDataRow(company, companyData, zoomData)
       ])
     })
 
   // Helper function to extract company data row
-  function getCompanyDataRow(company, companyData) {
+  function getCompanyDataRow(company, companyData, zoomData) {
     return [
 
         // Company Basic Information
