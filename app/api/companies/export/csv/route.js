@@ -554,87 +554,226 @@ function generateApolloSheetData(companies, exportDate) {
   ]
 
   const headers = [
+    // Internal Reference
     'Company Name',
     'Company ID',
-    'Apollo Organization ID',
+
+    // Contact Information (if people data available)
+    'Contact First Name',
+    'Contact Last Name',
+    'Contact Title',
+    'Contact Email',
+    'Contact Phone',
+    'Contact LinkedIn',
+    'Contact Seniority',
+    'Contact Department',
+
+    // Apollo Organization Data
+    'Apollo Org ID',
     'Organization Name',
     'Website',
     'Domain',
     'Industry',
+    'Secondary Industries',
     'Keywords',
+
+    // Company Metrics
     'Founded Year',
     'Employee Count',
-    'Estimated Revenue',
+    'Revenue (USD)',
+    'Revenue (Printed)',
+    'Alexa Ranking',
+    'Retail Location Count',
+
+    // Location
+    'Street Address',
     'City',
     'State',
     'Country',
+    'Postal Code',
+    'Raw Address',
+
+    // Contact Info
     'Phone',
+    'Sanitized Phone',
+
+    // Social & Web
     'LinkedIn URL',
+    'LinkedIn UID',
     'Facebook URL',
     'Twitter URL',
+    'Blog URL',
+    'Logo URL',
+    'Crunchbase URL',
+    'AngelList URL',
+
+    // Public Company Info
+    'Publicly Traded Symbol',
+    'Publicly Traded Exchange',
+
+    // Additional Data
+    'NAICS Codes',
+    'Languages',
+
+    // Metadata
     'Enriched At',
     'Data Source'
   ]
 
   const dataRows = companies
     .filter(c => c.enrichment_data?.apollo_data && Object.keys(c.enrichment_data.apollo_data).length > 0)
-    .map(company => {
+    .flatMap(company => {
       const apolloData = company.enrichment_data?.apollo_data || {}
       const organizations = apolloData.organizations || []
+      const people = apolloData.people || []
 
-      // If there are multiple organizations, create a row for each
-      if (organizations.length > 0) {
-        return organizations.map(org => [
+      if (organizations.length === 0) {
+        return [[
           company.name || 'N/A',
           company.id || '',
+          ...Array(56).fill('Not Available'),
+          company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
+          apolloData.source || 'apollo'
+        ]]
+      }
+
+      const org = organizations[0] // Use first organization
+
+      // If we have people data, create one row per person
+      if (people.length > 0) {
+        return people.map(person => [
+          // Internal Reference
+          company.name || 'N/A',
+          company.id || '',
+
+          // Contact Information
+          person.first_name || 'Not Available',
+          person.last_name || 'Not Available',
+          person.title || 'Not Available',
+          person.email || 'Not Available',
+          person.phone_numbers?.[0]?.sanitized_number || person.phone_numbers?.[0]?.raw_number || 'Not Available',
+          person.linkedin_url || 'Not Available',
+          person.seniority || 'Not Available',
+          person.departments?.[0] || 'Not Available',
+
+          // Apollo Organization Data
           org.id || 'Not Available',
           org.name || 'Not Available',
           org.website_url || 'Not Available',
           org.primary_domain || 'Not Available',
           org.industry || 'Not Available',
-          Array.isArray(org.keywords) ? org.keywords.join(', ') : 'Not Available',
+          Array.isArray(org.secondary_industries) ? org.secondary_industries.join(', ') : 'Not Available',
+          Array.isArray(org.keywords) ? org.keywords.slice(0, 20).join(', ') : 'Not Available',
+
+          // Company Metrics
           org.founded_year || 'Not Available',
-          org.employee_count || org.estimated_num_employees || 'Not Available',
-          org.estimated_annual_revenue || 'Not Available',
+          org.estimated_num_employees || 'Not Available',
+          org.organization_revenue || 'Not Available',
+          org.organization_revenue_printed || 'Not Available',
+          org.alexa_ranking || 'Not Available',
+          org.retail_location_count || 'Not Available',
+
+          // Location
+          org.street_address || 'Not Available',
           org.city || 'Not Available',
           org.state || 'Not Available',
           org.country || 'Not Available',
+          org.postal_code || 'Not Available',
+          org.raw_address || 'Not Available',
+
+          // Contact Info
           org.phone || 'Not Available',
+          org.sanitized_phone || 'Not Available',
+
+          // Social & Web
           org.linkedin_url || 'Not Available',
+          org.linkedin_uid || 'Not Available',
           org.facebook_url || 'Not Available',
           org.twitter_url || 'Not Available',
+          org.blog_url || 'Not Available',
+          org.logo_url || 'Not Available',
+          org.crunchbase_url || 'Not Available',
+          org.angellist_url || 'Not Available',
+
+          // Public Company Info
+          org.publicly_traded_symbol || 'Not Available',
+          org.publicly_traded_exchange || 'Not Available',
+
+          // Additional Data
+          Array.isArray(org.naics_codes) ? org.naics_codes.join(', ') : 'Not Available',
+          Array.isArray(org.languages) ? org.languages.join(', ') : 'Not Available',
+
+          // Metadata
           company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
           apolloData.source || 'apollo'
         ])
       } else {
+        // No people data, just organization
         return [[
+          // Internal Reference
           company.name || 'N/A',
           company.id || '',
-          'Not Available',
-          'No organization found',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
+
+          // Contact Information - empty
+          'Not Available', 'Not Available', 'Not Available', 'Not Available',
+          'Not Available', 'Not Available', 'Not Available', 'Not Available',
+
+          // Apollo Organization Data
+          org.id || 'Not Available',
+          org.name || 'Not Available',
+          org.website_url || 'Not Available',
+          org.primary_domain || 'Not Available',
+          org.industry || 'Not Available',
+          Array.isArray(org.secondary_industries) ? org.secondary_industries.join(', ') : 'Not Available',
+          Array.isArray(org.keywords) ? org.keywords.slice(0, 20).join(', ') : 'Not Available',
+
+          // Company Metrics
+          org.founded_year || 'Not Available',
+          org.estimated_num_employees || 'Not Available',
+          org.organization_revenue || 'Not Available',
+          org.organization_revenue_printed || 'Not Available',
+          org.alexa_ranking || 'Not Available',
+          org.retail_location_count || 'Not Available',
+
+          // Location
+          org.street_address || 'Not Available',
+          org.city || 'Not Available',
+          org.state || 'Not Available',
+          org.country || 'Not Available',
+          org.postal_code || 'Not Available',
+          org.raw_address || 'Not Available',
+
+          // Contact Info
+          org.phone || 'Not Available',
+          org.sanitized_phone || 'Not Available',
+
+          // Social & Web
+          org.linkedin_url || 'Not Available',
+          org.linkedin_uid || 'Not Available',
+          org.facebook_url || 'Not Available',
+          org.twitter_url || 'Not Available',
+          org.blog_url || 'Not Available',
+          org.logo_url || 'Not Available',
+          org.crunchbase_url || 'Not Available',
+          org.angellist_url || 'Not Available',
+
+          // Public Company Info
+          org.publicly_traded_symbol || 'Not Available',
+          org.publicly_traded_exchange || 'Not Available',
+
+          // Additional Data
+          Array.isArray(org.naics_codes) ? org.naics_codes.join(', ') : 'Not Available',
+          Array.isArray(org.languages) ? org.languages.join(', ') : 'Not Available',
+
+          // Metadata
           company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
           apolloData.source || 'apollo'
         ]]
       }
     })
-    .flat()
 
   if (dataRows.length === 0) {
-    dataRows.push(['No Apollo.io data available', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+    dataRows.push(['No Apollo.io data available', ...Array(57).fill('')])
   }
 
   return [...reportInfo, headers, ...dataRows]

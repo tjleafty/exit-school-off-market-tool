@@ -443,6 +443,8 @@ async function callHunterAPI(company) {
 
 // Helper function to call Apollo.io API
 async function callApolloAPI(company) {
+  console.log('callApolloAPI: Starting for company:', company.name)
+
   // Get Apollo.io API key from database
   const { data: apiKeyData } = await supabase
     .from('api_keys')
@@ -458,7 +460,8 @@ async function callApolloAPI(company) {
   const apiKey = apiKeyData.encrypted_key
 
   // Search for organization
-  const response = await fetch('https://api.apollo.io/v1/organizations/search', {
+  console.log('Apollo: Searching for organization:', company.name)
+  const orgResponse = await fetch('https://api.apollo.io/v1/organizations/search', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -471,14 +474,52 @@ async function callApolloAPI(company) {
     })
   })
 
-  if (!response.ok) {
-    throw new Error(`Apollo.io API error: ${response.status}`)
+  if (!orgResponse.ok) {
+    throw new Error(`Apollo.io organization search error: ${orgResponse.status}`)
   }
 
-  const data = await response.json()
+  const orgData = await orgResponse.json()
+  const organizations = orgData.organizations || []
+
+  console.log('Apollo: Found', organizations.length, 'organizations')
+
+  // Get people/contacts for the organization
+  let people = []
+  if (organizations.length > 0 && organizations[0].id) {
+    const orgId = organizations[0].id
+    console.log('Apollo: Searching for people at organization ID:', orgId)
+
+    try {
+      const peopleResponse = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey
+        },
+        body: JSON.stringify({
+          organization_ids: [orgId],
+          person_seniorities: ['senior', 'manager', 'director', 'vp', 'c_suite', 'owner'],
+          page: 1,
+          per_page: 10
+        })
+      })
+
+      if (peopleResponse.ok) {
+        const peopleData = await peopleResponse.json()
+        people = peopleData.people || []
+        console.log('Apollo: Found', people.length, 'people')
+      } else {
+        const errorText = await peopleResponse.text()
+        console.error('Apollo people search error:', peopleResponse.status, errorText)
+      }
+    } catch (error) {
+      console.error('Apollo people search failed:', error.message)
+    }
+  }
 
   return {
-    organizations: data.organizations || [],
+    organizations: organizations,
+    people: people,
     source: 'apollo'
   }
 }
