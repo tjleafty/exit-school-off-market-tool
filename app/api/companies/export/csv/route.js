@@ -520,15 +520,7 @@ function generateHunterSheetData(companies, exportDate) {
           hunterData.domain || 'Not Available',
           hunterData.organization || 'Not Available',
           'No emails found',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
-          '',
+          ...Array(9).fill(''), // Empty fields for first_name through twitter (9 fields)
           company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
           hunterData.source || 'hunter'
         ]]
@@ -537,7 +529,7 @@ function generateHunterSheetData(companies, exportDate) {
     .flat()
 
   if (dataRows.length === 0) {
-    dataRows.push(['No Hunter.io data available', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+    dataRows.push(['No Hunter.io data available', ...Array(headers.length - 1).fill('')])
   }
 
   return [...reportInfo, headers, ...dataRows]
@@ -631,7 +623,7 @@ function generateApolloSheetData(companies, exportDate) {
         return [[
           company.name || 'N/A',
           company.id || '',
-          ...Array(56).fill('Not Available'),
+          ...Array(headers.length - 4).fill('Not Available'), // -4 for company name, id, enriched_at, source
           company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
           apolloData.source || 'apollo'
         ]]
@@ -773,7 +765,7 @@ function generateApolloSheetData(companies, exportDate) {
     })
 
   if (dataRows.length === 0) {
-    dataRows.push(['No Apollo.io data available', ...Array(57).fill('')])
+    dataRows.push(['No Apollo.io data available', ...Array(headers.length - 1).fill('')])
   }
 
   return [...reportInfo, headers, ...dataRows]
