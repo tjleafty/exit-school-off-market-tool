@@ -1028,8 +1028,8 @@ export default function CompanyManagementPage() {
                                   <div>📧 {company.email || 'No email'}</div>
                                   <div>📞 {company.phone || company.formatted_phone_number || 'No phone'}</div>
                                   <div>🌐 {company.website ? (
-                                    <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                      {new URL(company.website).hostname}
+                                    <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                      {company.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                                     </a>
                                   ) : 'No website'}</div>
                                   <div>📅 Updated: {company.updated_at ? new Date(company.updated_at).toLocaleDateString() : 'Never'}</div>
