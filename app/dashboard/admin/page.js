@@ -123,6 +123,25 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </Link>
+
+            <Link href="/dashboard/enriched-contacts" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow cursor-pointer">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">👤</span>
+                    </div>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Enriched Contacts</dt>
+                      <dd className="text-lg font-medium text-gray-900">Review & Export</dd>
+                      <dd className="text-sm text-gray-500 mt-1">View, filter, and export contact data from enrichment</dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </Link>
           </div>
 
           {/* Shared features */}
