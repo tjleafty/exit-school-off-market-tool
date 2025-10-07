@@ -383,9 +383,61 @@ async function callZoomInfoAPI(company) {
 
     if (contactResponse.ok) {
       const contactJson = await contactResponse.json()
-      console.log('ZoomInfo contact data:', JSON.stringify(contactJson, null, 2))
-      console.log('Found', contactJson?.data?.length || 0, 'contacts')
-      contactData = contactJson?.data || []
+      console.log('ZoomInfo contact search found', contactJson?.data?.length || 0, 'contacts')
+      const foundContacts = contactJson?.data || []
+
+      // Enrich each contact to get email and phone
+      for (const contact of foundContacts.slice(0, 10)) {
+        try {
+          console.log('Enriching contact:', contact.firstName, contact.lastName, 'ID:', contact.id)
+          const enrichResponse = await fetch('https://api.zoominfo.com/enrich/contact', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({
+              matchPersonInput: [{
+                personId: contact.id
+              }],
+              outputFields: [
+                'id', 'firstName', 'lastName', 'middleName',
+                'email', 'phone', 'directPhone', 'mobilePhone',
+                'jobTitle', 'managementLevel', 'jobFunction', 'department',
+                'companyId', 'companyName', 'linkedinUrl',
+                'contactAccuracyScore', 'lastUpdatedDate'
+              ]
+            })
+          })
+
+          if (enrichResponse.ok) {
+            const enrichData = await enrichResponse.json()
+            console.log('Contact enrichment response:', JSON.stringify(enrichData, null, 2))
+
+            // Extract enriched contact from response
+            if (enrichData?.data?.result?.[0]?.data?.[0]) {
+              const enrichedContact = enrichData.data.result[0].data[0]
+              console.log('✓ Enriched contact:', enrichedContact.firstName, enrichedContact.lastName, 'Email:', enrichedContact.email)
+              contactData.push(enrichedContact)
+            } else {
+              // Fallback to basic contact info if enrichment fails
+              console.log('⚠ No enriched data, using basic contact info')
+              contactData.push(contact)
+            }
+          } else {
+            const errorText = await enrichResponse.text()
+            console.error('Contact enrichment error:', enrichResponse.status, errorText)
+            // Use basic contact info on error
+            contactData.push(contact)
+          }
+        } catch (error) {
+          console.error('Contact enrichment exception:', error.message)
+          // Use basic contact info on exception
+          contactData.push(contact)
+        }
+      }
+
+      console.log('Final contact count with enrichment:', contactData.length)
     } else {
       const errorText = await contactResponse.text()
       console.error('ZoomInfo contact API error:', errorText)
