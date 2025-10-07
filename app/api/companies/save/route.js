@@ -8,8 +8,8 @@ export async function POST(request) {
     console.log('=== SAVE COMPANIES API CALLED ===')
     const body = await request.json()
     console.log('Request body:', JSON.stringify(body, null, 2))
-    
-    const { companies } = body
+
+    const { companies, userId } = body
 
     if (!companies || !Array.isArray(companies) || companies.length === 0) {
       console.log('Error: No companies provided or invalid format')
@@ -19,14 +19,23 @@ export async function POST(request) {
       )
     }
 
-    console.log(`Saving ${companies.length} companies to database...`)
+    if (!userId) {
+      console.error('Error: No userId provided')
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      )
+    }
+
+    console.log(`Saving ${companies.length} companies for user ${userId}...`)
     console.log('First company sample:', JSON.stringify(companies[0], null, 2))
 
     // Prepare companies for insertion (minimal required fields only)
     const companiesData = companies.map((company, index) => {
       console.log(`Processing company ${index + 1}:`, company.name)
-      
+
       const processedCompany = {
+        user_id: userId, // CRITICAL: Associate company with user
         place_id: String(company.place_id || company.id || `temp_${Date.now()}_${index}`),
         name: String(company.name || 'Unknown Company'),
         formatted_address: String(company.address || company.formatted_address || company.location || ''),
@@ -42,8 +51,8 @@ export async function POST(request) {
         geometry: company.geometry ? (typeof company.geometry === 'object' ? JSON.stringify(company.geometry) : String(company.geometry)) : null,
         is_enriched: Boolean(company.is_enriched)
       }
-      
-      console.log(`Processed company ${index + 1}:`, processedCompany)
+
+      console.log(`Processed company ${index + 1} with user_id:`, processedCompany.user_id)
       return processedCompany
     })
     
