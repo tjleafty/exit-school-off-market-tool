@@ -389,7 +389,7 @@ async function callZoomInfoAPI(company) {
       // Enrich each contact to get email and phone
       for (const contact of foundContacts.slice(0, 10)) {
         try {
-          console.log('Enriching contact:', contact.firstName, contact.lastName, 'ID:', contact.id)
+          console.log('Enriching contact:', contact.firstName, contact.lastName, 'at', company.name)
           const enrichResponse = await fetch('https://api.zoominfo.com/enrich/contact', {
             method: 'POST',
             headers: {
@@ -398,7 +398,9 @@ async function callZoomInfoAPI(company) {
             },
             body: JSON.stringify({
               matchPersonInput: [{
-                personId: contact.id
+                firstName: contact.firstName,
+                lastName: contact.lastName,
+                companyName: company.name
               }],
               outputFields: [
                 'id', 'firstName', 'lastName', 'middleName',
