@@ -412,21 +412,23 @@ async function callZoomInfoAPI(company) {
 
           if (enrichResponse.ok) {
             const enrichData = await enrichResponse.json()
-            console.log('Contact enrichment response:', JSON.stringify(enrichData, null, 2))
+            console.log('Contact enrichment SUCCESS for', contact.firstName, contact.lastName)
 
             // Extract enriched contact from response
             if (enrichData?.data?.result?.[0]?.data?.[0]) {
               const enrichedContact = enrichData.data.result[0].data[0]
-              console.log('✓ Enriched contact:', enrichedContact.firstName, enrichedContact.lastName, 'Email:', enrichedContact.email)
+              console.log('✓ Got enriched data - Email:', enrichedContact.email, 'Phone:', enrichedContact.phone)
               contactData.push(enrichedContact)
             } else {
-              // Fallback to basic contact info if enrichment fails
-              console.log('⚠ No enriched data, using basic contact info')
+              // Fallback to basic contact info if enrichment response is empty
+              console.log('⚠ Empty enrichment response, using basic contact info')
+              console.log('Response structure:', JSON.stringify(enrichData, null, 2))
               contactData.push(contact)
             }
           } else {
             const errorText = await enrichResponse.text()
-            console.error('Contact enrichment error:', enrichResponse.status, errorText)
+            console.error('❌ Contact enrichment FAILED:', enrichResponse.status)
+            console.error('Error response:', errorText)
             // Use basic contact info on error
             contactData.push(contact)
           }
