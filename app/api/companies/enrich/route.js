@@ -420,17 +420,44 @@ async function callZoomInfoAPI(company) {
 
           if (enrichResponse.ok) {
             const enrichData = await enrichResponse.json()
-            console.log('Contact enrichment SUCCESS for', contact.firstName, contact.lastName)
+            console.log('Contact enrichment response received for', contact.firstName, contact.lastName)
+            console.log('Response status: SUCCESS')
+
+            // Debug: Log the full response structure
+            console.log('=== ENRICHMENT RESPONSE DEBUG ===')
+            console.log('Response keys:', Object.keys(enrichData))
+            console.log('enrichData.data exists?', !!enrichData?.data)
+            console.log('enrichData.data.result exists?', !!enrichData?.data?.result)
+            console.log('enrichData.data.result is array?', Array.isArray(enrichData?.data?.result))
+            if (enrichData?.data?.result) {
+              console.log('enrichData.data.result length:', enrichData.data.result.length)
+              if (enrichData.data.result[0]) {
+                console.log('enrichData.data.result[0] keys:', Object.keys(enrichData.data.result[0]))
+                console.log('enrichData.data.result[0].data exists?', !!enrichData.data.result[0].data)
+                if (enrichData.data.result[0].data) {
+                  console.log('enrichData.data.result[0].data is array?', Array.isArray(enrichData.data.result[0].data))
+                  console.log('enrichData.data.result[0].data length:', enrichData.data.result[0].data.length)
+                }
+              }
+            }
+            console.log('Full response JSON (first 1000 chars):', JSON.stringify(enrichData).substring(0, 1000))
+            console.log('=== END DEBUG ===')
 
             // Extract enriched contact from response
             if (enrichData?.data?.result?.[0]?.data?.[0]) {
               const enrichedContact = enrichData.data.result[0].data[0]
-              console.log('✓ Got enriched data - Email:', enrichedContact.email, 'Phone:', enrichedContact.phone)
+              console.log('✓✓✓ Successfully extracted enriched contact')
+              console.log('  Email:', enrichedContact.email || 'NOT PROVIDED')
+              console.log('  Direct Phone:', enrichedContact.directPhone || 'NOT PROVIDED')
+              console.log('  Mobile Phone:', enrichedContact.mobilePhone || 'NOT PROVIDED')
+              console.log('  Contact Accuracy Score:', enrichedContact.contactAccuracyScore)
               contactData.push(enrichedContact)
             } else {
               // Fallback to basic contact info if enrichment response is empty
-              console.log('⚠ Empty enrichment response, using basic contact info')
-              console.log('Response structure:', JSON.stringify(enrichData, null, 2))
+              console.log('⚠⚠⚠ Could not extract enriched contact from response structure')
+              console.log('  Using basic contact info from search instead')
+              console.log('  Basic contact has email?:', !!contact.email)
+              console.log('  Basic contact has phone?:', !!contact.directPhone)
               contactData.push(contact)
             }
           } else {
@@ -536,7 +563,11 @@ async function callApolloAPI(company) {
     })
   })
 
+  console.log('Apollo organization search response status:', orgResponse.status)
+
   if (!orgResponse.ok) {
+    const errorText = await orgResponse.text()
+    console.error('Apollo organization search FAILED:', errorText)
     throw new Error(`Apollo.io organization search error: ${orgResponse.status}`)
   }
 
@@ -544,6 +575,18 @@ async function callApolloAPI(company) {
   const organizations = orgData.organizations || []
 
   console.log('Apollo: Found', organizations.length, 'organizations')
+
+  if (organizations.length > 0) {
+    const org = organizations[0]
+    console.log('Apollo: First organization match:')
+    console.log('  Name:', org.name)
+    console.log('  ID:', org.id)
+    console.log('  Website:', org.website_url)
+    console.log('  Employees:', org.estimated_num_employees)
+  } else {
+    console.log('Apollo: No organizations found for query:', company.name)
+    console.log('Apollo: Response data keys:', Object.keys(orgData))
+  }
 
   // Get people/contacts for the organization
   let people = []
@@ -570,6 +613,18 @@ async function callApolloAPI(company) {
         const peopleData = await peopleResponse.json()
         people = peopleData.people || []
         console.log('Apollo: Found', people.length, 'people')
+
+        if (people.length > 0) {
+          console.log('Apollo: First person details:')
+          const person = people[0]
+          console.log('  Name:', person.first_name, person.last_name)
+          console.log('  Title:', person.title)
+          console.log('  Email:', person.email || 'NOT PROVIDED')
+          console.log('  Seniority:', person.seniority)
+        } else {
+          console.log('Apollo: No people found. Response keys:', Object.keys(peopleData))
+          console.log('Apollo: Response data (first 500 chars):', JSON.stringify(peopleData).substring(0, 500))
+        }
       } else {
         const errorText = await peopleResponse.text()
         console.error('Apollo people search error:', peopleResponse.status, errorText)
