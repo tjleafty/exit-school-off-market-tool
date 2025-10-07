@@ -148,11 +148,17 @@ export async function POST(request) {
     console.log('Step 4: Company updated successfully')
     console.log('Step 4.1: Updated company enrichment_data:', JSON.stringify(updatedCompany.enrichment_data))
 
+    // Step 5: Save contacts to company_contacts table
+    console.log('Step 5: Saving contacts to database')
+    const contactsSaved = await saveContactsToDatabase(company.id, enrichmentData)
+    console.log('Step 5.1: Saved', contactsSaved, 'contacts to database')
+
     return NextResponse.json({
       success: true,
       message: 'Company enriched successfully',
       data: updatedCompany,
       enrichmentData: enrichmentData,
+      contactsSaved: contactsSaved,
       timestamp: new Date().toISOString()
     })
 
@@ -610,5 +616,136 @@ export async function GET(request) {
       { error: 'Failed to fetch companies' },
       { status: 500 }
     )
+  }
+}
+
+// Helper function to save contacts to company_contacts table
+async function saveContactsToDatabase(companyId, enrichmentData) {
+  let totalSaved = 0
+
+  try {
+    // Process ZoomInfo contacts
+    const zoomContacts = enrichmentData.zoominfo_data?.contacts || []
+    for (const contact of zoomContacts) {
+      const contactRecord = {
+        company_id: companyId,
+        source: 'zoominfo',
+        source_contact_id: contact.id?.toString(),
+        first_name: contact.firstName,
+        last_name: contact.lastName,
+        middle_name: contact.middleName,
+        job_title: contact.jobTitle,
+        management_level: contact.managementLevel,
+        department: contact.department,
+        job_function: contact.jobFunction,
+        job_start_date: contact.jobStartDate,
+        email: contact.email,
+        phone: contact.phone,
+        direct_phone: contact.directPhone,
+        mobile_phone: contact.mobilePhone,
+        linkedin_url: contact.linkedinUrl,
+        confidence_score: null,
+        contact_accuracy_score: contact.contactAccuracyScore,
+        has_email: contact.hasEmail || !!contact.email,
+        has_direct_phone: contact.hasDirectPhone || !!contact.directPhone,
+        has_mobile_phone: contact.hasMobilePhone || !!contact.mobilePhone,
+        email_verified: false,
+        last_enriched_at: new Date().toISOString(),
+        last_updated_date: contact.lastUpdatedDate,
+        valid_date: contact.validDate,
+        raw_data: contact
+      }
+
+      const { error } = await supabase
+        .from('company_contacts')
+        .upsert(contactRecord, {
+          onConflict: 'company_id,source,source_contact_id',
+          ignoreDuplicates: false
+        })
+
+      if (!error) totalSaved++
+      else console.error('Error saving ZoomInfo contact:', error)
+    }
+
+    // Process Apollo people
+    const apolloPeople = enrichmentData.apollo_data?.people || []
+    for (const person of apolloPeople) {
+      const contactRecord = {
+        company_id: companyId,
+        source: 'apollo',
+        source_contact_id: person.id?.toString(),
+        first_name: person.first_name,
+        last_name: person.last_name,
+        job_title: person.title,
+        seniority: person.seniority,
+        department: person.departments?.[0],
+        email: person.email,
+        phone: person.phone_numbers?.[0]?.sanitized_number || person.phone_numbers?.[0]?.raw_number,
+        linkedin_url: person.linkedin_url,
+        twitter_url: person.twitter_url,
+        has_email: !!person.email,
+        has_direct_phone: false,
+        has_mobile_phone: false,
+        email_verified: false,
+        last_enriched_at: new Date().toISOString(),
+        raw_data: person
+      }
+
+      const { error } = await supabase
+        .from('company_contacts')
+        .upsert(contactRecord, {
+          onConflict: 'company_id,source,source_contact_id',
+          ignoreDuplicates: false
+        })
+
+      if (!error) totalSaved++
+      else console.error('Error saving Apollo contact:', error)
+    }
+
+    // Process Hunter emails
+    const hunterEmails = enrichmentData.hunter_data?.emails || []
+    for (const email of hunterEmails) {
+      // Skip generic emails
+      if (email.type === 'generic') continue
+
+      const contactRecord = {
+        company_id: companyId,
+        source: 'hunter',
+        source_contact_id: null, // Hunter doesn't provide contact IDs
+        first_name: email.first_name,
+        last_name: email.last_name,
+        job_title: email.position,
+        seniority: email.seniority,
+        department: email.department,
+        email: email.value,
+        phone: email.phone_number,
+        linkedin_url: email.linkedin,
+        twitter_url: email.twitter,
+        confidence_score: email.confidence,
+        has_email: true,
+        has_direct_phone: !!email.phone_number,
+        has_mobile_phone: false,
+        email_verified: email.verification?.status === 'valid',
+        last_enriched_at: new Date().toISOString(),
+        raw_data: email
+      }
+
+      const { error } = await supabase
+        .from('company_contacts')
+        .upsert(contactRecord, {
+          onConflict: 'company_id,source,email',
+          ignoreDuplicates: false
+        })
+
+      if (!error) totalSaved++
+      else console.error('Error saving Hunter contact:', error)
+    }
+
+    console.log('Successfully saved', totalSaved, 'contacts to database')
+    return totalSaved
+
+  } catch (error) {
+    console.error('Error in saveContactsToDatabase:', error)
+    return totalSaved
   }
 }
