@@ -9,6 +9,7 @@ export default function EnrichedContactsPage() {
   const [companies, setCompanies] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedContacts, setSelectedContacts] = useState(new Set())
+  const [user, setUser] = useState(null)
   const [filters, setFilters] = useState({
     search: '',
     source: 'all',
@@ -19,14 +20,30 @@ export default function EnrichedContactsPage() {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' })
 
   useEffect(() => {
-    loadContacts()
-    loadCompanies()
+    // Load user from localStorage
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('user')
+      if (userStr) {
+        const userData = JSON.parse(userStr)
+        setUser(userData)
+      }
+    }
   }, [])
 
+  useEffect(() => {
+    if (user?.id) {
+      loadContacts()
+      loadCompanies()
+    }
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function loadCompanies() {
+    if (!user?.id) return
+
     const { data, error } = await supabase
       .from('companies')
       .select('id, name')
+      .eq('user_id', user.id)
       .eq('is_enriched', true)
       .order('name')
 
@@ -36,8 +53,31 @@ export default function EnrichedContactsPage() {
   }
 
   async function loadContacts() {
+    if (!user?.id) return
+
     setLoading(true)
 
+    // Get user's companies first
+    const { data: userCompanies, error: companiesError } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('user_id', user.id)
+
+    if (companiesError) {
+      console.error('Error loading user companies:', companiesError)
+      setLoading(false)
+      return
+    }
+
+    const companyIds = userCompanies.map(c => c.id)
+
+    if (companyIds.length === 0) {
+      setContacts([])
+      setLoading(false)
+      return
+    }
+
+    // Load contacts only for user's companies
     let query = supabase
       .from('company_contacts')
       .select(`
@@ -48,6 +88,7 @@ export default function EnrichedContactsPage() {
           website
         )
       `)
+      .in('company_id', companyIds)
 
     const { data, error } = await query
 

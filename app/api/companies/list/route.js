@@ -7,14 +7,23 @@ export const runtime = 'nodejs'
 export async function GET(request) {
   try {
     console.log('=== LOADING COMPANIES LIST ===')
-    
+
     const url = new URL(request.url)
+    const userId = url.searchParams.get('userId')
     const enrichedOnly = url.searchParams.get('enriched') === 'true'
-    
+
     let query = supabase
       .from('companies')
       .select('*')
       .order('created_at', { ascending: false })
+
+    // Filter by user_id - critical for data isolation
+    if (userId) {
+      console.log('Filtering companies for user:', userId)
+      query = query.eq('user_id', userId)
+    } else {
+      console.warn('WARNING: No userId provided - returning all companies')
+    }
 
     if (enrichedOnly) {
       query = query.eq('is_enriched', true)

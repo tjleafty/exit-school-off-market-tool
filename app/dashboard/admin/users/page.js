@@ -660,7 +660,13 @@ export default function AdminUserManagementPage() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button 
+                      <Link
+                        href={`/dashboard/admin/users/${user.id}/activity`}
+                        className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
+                      >
+                        View Activity
+                      </Link>
+                      <button
                         onClick={() => handleEditUser(user)}
                         className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700"
                       >
