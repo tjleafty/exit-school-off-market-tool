@@ -367,11 +367,13 @@ async function callZoomInfoAPI(company) {
     }
   }
 
-  // Get contact information (top 10 executives)
+  // Get contact information (top 10 contacts)
   let contactData = []
   if (companySearchResult.id) {
     console.log('Fetching contacts for company ID:', companySearchResult.id)
-    const contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
+
+    // Try executive search first
+    let contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -379,18 +381,53 @@ async function callZoomInfoAPI(company) {
       },
       body: JSON.stringify({
         companyId: companySearchResult.id.toString(),
-        managementLevel: 'C Level Exec,VP Level Exec,Director',
+        managementLevel: 'C Level Exec,VP Level Exec,Director,Manager',
         page: 1,
         rpp: 10
       })
     })
 
-    console.log('ZoomInfo contact search response status:', contactResponse.status)
+    console.log('ZoomInfo executive search response status:', contactResponse.status)
 
+    let foundContacts = []
     if (contactResponse.ok) {
       const contactJson = await contactResponse.json()
-      console.log('ZoomInfo contact search found', contactJson?.data?.length || 0, 'contacts')
-      const foundContacts = contactJson?.data || []
+      foundContacts = contactJson?.data || []
+      console.log('ZoomInfo executive search found', foundContacts.length, 'contacts')
+
+      // If no executives found, try broader search (any contact)
+      if (foundContacts.length === 0) {
+        console.log('No executives found, trying broader search for ANY contacts...')
+        contactResponse = await fetch('https://api.zoominfo.com/search/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            companyId: companySearchResult.id.toString(),
+            // No managementLevel filter = search all contacts
+            page: 1,
+            rpp: 10
+          })
+        })
+
+        console.log('ZoomInfo broad search response status:', contactResponse.status)
+
+        if (contactResponse.ok) {
+          const broadContactJson = await contactResponse.json()
+          foundContacts = broadContactJson?.data || []
+          console.log('ZoomInfo broad search found', foundContacts.length, 'contacts')
+        } else {
+          console.error('Broad contact search failed:', contactResponse.status)
+        }
+      }
+    } else {
+      console.error('Executive search failed:', contactResponse.status)
+    }
+
+    if (foundContacts.length > 0) {
+      console.log('Proceeding with', foundContacts.length, 'contacts for enrichment')
 
       // Enrich each contact to get email and phone
       for (const contact of foundContacts.slice(0, 10)) {
@@ -476,8 +513,7 @@ async function callZoomInfoAPI(company) {
 
       console.log('Final contact count with enrichment:', contactData.length)
     } else {
-      const errorText = await contactResponse.text()
-      console.error('ZoomInfo contact API error:', errorText)
+      console.log('⚠ No contacts found for this company in ZoomInfo')
     }
   }
 
