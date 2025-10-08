@@ -35,6 +35,7 @@ export default function CompanyManagementPage() {
   const [advancedFilterEnabled, setAdvancedFilterEnabled] = useState(false)
   const [selectedCompanyDetails, setSelectedCompanyDetails] = useState(null)
   const [enrichingCompany, setEnrichingCompany] = useState(null)
+  const [enrichmentStatus, setEnrichmentStatus] = useState({}) // Track status per company: { companyId: 'enriching' | 'success' | 'error' }
   const [exportingCSV, setExportingCSV] = useState(false)
   const [exportingTXT, setExportingTXT] = useState(false)
   const [activeTab, setActiveTab] = useState('search') // 'search' or 'manage'
@@ -384,6 +385,7 @@ export default function CompanyManagementPage() {
   const enrichCompany = async (company, isFromSearch = false) => {
     try {
       setEnrichingCompany(company.place_id || company.id)
+      setEnrichmentStatus(prev => ({ ...prev, [company.id]: 'enriching' }))
 
       const payload = isFromSearch ? {
         companyData: {
@@ -411,6 +413,8 @@ export default function CompanyManagementPage() {
       const result = await response.json()
 
       if (result.success) {
+        setEnrichmentStatus(prev => ({ ...prev, [company.id]: 'success' }))
+
         if (isFromSearch) {
           // Update the company in search results
           setSearchResults(prev =>
@@ -434,14 +438,39 @@ export default function CompanyManagementPage() {
           setSelectedCompanyDetails({ ...selectedCompanyDetails, is_enriched: true, ...result.data })
         }
 
-        alert('Company data enriched successfully!')
+        // Clear success status after 3 seconds
+        setTimeout(() => {
+          setEnrichmentStatus(prev => {
+            const newStatus = { ...prev }
+            delete newStatus[company.id]
+            return newStatus
+          })
+        }, 3000)
       } else {
         console.error('Enrichment failed:', result.error)
-        alert('Failed to enrich company data. Please try again.')
+        setEnrichmentStatus(prev => ({ ...prev, [company.id]: 'error' }))
+
+        // Clear error status after 5 seconds
+        setTimeout(() => {
+          setEnrichmentStatus(prev => {
+            const newStatus = { ...prev }
+            delete newStatus[company.id]
+            return newStatus
+          })
+        }, 5000)
       }
     } catch (error) {
       console.error('Error enriching company:', error)
-      alert('Error enriching company data. Please try again.')
+      setEnrichmentStatus(prev => ({ ...prev, [company.id]: 'error' }))
+
+      // Clear error status after 5 seconds
+      setTimeout(() => {
+        setEnrichmentStatus(prev => {
+          const newStatus = { ...prev }
+          delete newStatus[company.id]
+          return newStatus
+        })
+      }, 5000)
     } finally {
       setEnrichingCompany(null)
     }
@@ -1017,11 +1046,25 @@ export default function CompanyManagementPage() {
                                 <div className="flex items-center">
                                   <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
                                   <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                                    company?.is_enriched
+                                    enrichmentStatus[company.id] === 'enriching'
+                                      ? 'bg-blue-100 text-blue-800 animate-pulse'
+                                      : enrichmentStatus[company.id] === 'success'
+                                      ? 'bg-green-100 text-green-800'
+                                      : enrichmentStatus[company.id] === 'error'
+                                      ? 'bg-red-100 text-red-800'
+                                      : company?.is_enriched
                                       ? 'bg-green-100 text-green-800'
                                       : 'bg-yellow-100 text-yellow-800'
                                   }`}>
-                                    {company?.is_enriched ? 'Enriched' : 'Pending'}
+                                    {enrichmentStatus[company.id] === 'enriching'
+                                      ? '⏳ Enriching...'
+                                      : enrichmentStatus[company.id] === 'success'
+                                      ? '✓ Enriched!'
+                                      : enrichmentStatus[company.id] === 'error'
+                                      ? '✗ Error'
+                                      : company?.is_enriched
+                                      ? 'Enriched'
+                                      : 'Pending'}
                                   </span>
                                 </div>
                                 <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
