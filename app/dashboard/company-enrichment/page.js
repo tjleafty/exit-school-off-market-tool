@@ -38,7 +38,9 @@ export default function CompanyManagementPage() {
   const [enrichmentStatus, setEnrichmentStatus] = useState({}) // Track status per company: { companyId: 'enriching' | 'success' | 'error' }
   const [exportingCSV, setExportingCSV] = useState(false)
   const [exportingTXT, setExportingTXT] = useState(false)
-  const [activeTab, setActiveTab] = useState('search') // 'search' or 'manage'
+  const [activeTab, setActiveTab] = useState('search') // 'search', 'manage', or 'history'
+  const [selectedHistoryCompanies, setSelectedHistoryCompanies] = useState(new Set())
+  const [selectAllHistoryChecked, setSelectAllHistoryChecked] = useState(false)
 
   const [filters, setFilters] = useState({
     industry: '',
@@ -586,7 +588,7 @@ export default function CompanyManagementPage() {
               >
                 ← Back to Dashboard
               </Link>
-              <h1 className="text-xl font-semibold">Company Management</h1>
+              <h1 className="text-xl font-semibold">Company Enrichment</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -635,6 +637,19 @@ export default function CompanyManagementPage() {
                   }`}
                 >
                   📊 Data Management ({savedCompanies.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('history')
+                    setShowHistory(false)
+                  }}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'history'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  📚 History ({historicalCompanies.length})
                 </button>
               </nav>
             </div>
@@ -1027,7 +1042,7 @@ export default function CompanyManagementPage() {
                     )}
                     {historicalCompanies.length > 0 && (
                       <button
-                        onClick={() => setShowHistory(true)}
+                        onClick={() => setActiveTab("history")}
                         className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                       >
                         📚 View History ({historicalCompanies.length})
@@ -1157,7 +1172,7 @@ export default function CompanyManagementPage() {
                       </button>
                       {historicalCompanies.length > 0 && (
                         <button
-                          onClick={() => setShowHistory(true)}
+                          onClick={() => setActiveTab("history")}
                           className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
                         >
                           📚 View History
@@ -1344,8 +1359,6 @@ export default function CompanyManagementPage() {
         </div>
       )}
 
-      {/* History Modal */}
-      {showHistory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
