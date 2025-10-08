@@ -26,8 +26,6 @@ export default function CompanyManagementPage() {
   const [selectedSavedCompanies, setSelectedSavedCompanies] = useState(new Set())
   const [selectAllSavedChecked, setSelectAllSavedChecked] = useState(false)
   const [historicalCompanies, setHistoricalCompanies] = useState([])
-  const [showHistory, setShowHistory] = useState(false)
-  const [selectedHistoryDate, setSelectedHistoryDate] = useState(null)
 
   // Shared state
   const [user, setUser] = useState(null)
