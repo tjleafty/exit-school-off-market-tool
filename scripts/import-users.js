@@ -105,26 +105,28 @@ async function createUser(supabase, userData, index, total) {
       throw new Error(`Auth creation failed: ${authError.message}`)
     }
 
-    // Create user profile
-    log('gray', '  Creating user profile...')
+    // Update user profile (trigger already created it, we just need to update role/status)
+    log('gray', '  Updating user profile...')
+
+    // Small delay to ensure trigger has completed
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     const { error: profileError } = await supabase
       .from('users')
-      .insert({
-        id: authData.user.id,
-        email,
+      .update({
         full_name,
         company_name: company_name || null,
         role: userRole,
         status: 'ACTIVE',
         email_verified: true,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
+      .eq('id', authData.user.id)
 
     if (profileError) {
-      // Cleanup auth user if profile creation failed
+      // Cleanup auth user if profile update failed
       await supabase.auth.admin.deleteUser(authData.user.id)
-      throw new Error(`Profile creation failed: ${profileError.message}`)
+      throw new Error(`Profile update failed: ${profileError.message}`)
     }
 
     log('green', `  ✅ Created successfully (Role: ${userRole})`)
