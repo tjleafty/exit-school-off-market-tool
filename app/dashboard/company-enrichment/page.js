@@ -478,9 +478,11 @@ export default function CompanyManagementPage() {
     }
   }
 
-  const exportSelected = async (isFromSearch = true) => {
+  const exportSelected = async (isFromSearch = true, isFromHistory = false) => {
     const selectedData = isFromSearch
       ? searchResults.filter(company => selectedSearchCompanies.includes(company.place_id || company.id))
+      : isFromHistory
+      ? historicalCompanies.filter(company => selectedHistoryCompanies.has(company.id))
       : savedCompanies.filter(company => selectedSavedCompanies.has(company.id))
 
     if (selectedData.length === 0) {
@@ -1182,6 +1184,216 @@ export default function CompanyManagementPage() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* History Tab */}
+          {activeTab === 'history' && (
+            <div className="space-y-6">
+              {/* History Actions Bar */}
+              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    {selectedHistoryCompanies.size > 0 ? (
+                      <span className="font-medium text-blue-600">
+                        {selectedHistoryCompanies.size} compan{selectedHistoryCompanies.size === 1 ? 'y' : 'ies'} selected
+                      </span>
+                    ) : (
+                      <span>No companies selected</span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => exportSelected(false, true)}
+                      disabled={selectedHistoryCompanies.size === 0}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      📊 Export Excel ({selectedHistoryCompanies.size})
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const selectedCompanies = historicalCompanies.filter(c =>
+                          selectedHistoryCompanies.has(c.id) && !c?.is_enriched
+                        );
+
+                        if (selectedCompanies.length === 0) {
+                          alert('No non-enriched companies selected for enrichment.');
+                          return;
+                        }
+
+                        if (!confirm(`Enrich ${selectedCompanies.length} selected companies?`)) {
+                          return;
+                        }
+
+                        for (const company of selectedCompanies) {
+                          await enrichCompany(company, false);
+                          // Add delay to avoid rate limiting
+                          await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                      }}
+                      disabled={
+                        selectedHistoryCompanies.size === 0 ||
+                        enrichingCompany !== null ||
+                        historicalCompanies.filter(c => selectedHistoryCompanies.has(c.id) && !c?.is_enriched).length === 0
+                      }
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🔍 Enrich Selected ({historicalCompanies.filter(c => selectedHistoryCompanies.has(c.id) && !c?.is_enriched).length})
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const alreadyEnrichedCompanies = historicalCompanies.filter(c => selectedHistoryCompanies.has(c.id) && c?.is_enriched);
+
+                        if (alreadyEnrichedCompanies.length === 0) return;
+
+                        const confirmed = window.confirm(
+                          `Re-enrich ${alreadyEnrichedCompanies.length} already enriched ${alreadyEnrichedCompanies.length === 1 ? 'company' : 'companies'}?\n\n` +
+                          `This will update their enrichment data and may consume API credits.`
+                        );
+
+                        if (!confirmed) return;
+
+                        for (const company of alreadyEnrichedCompanies) {
+                          await enrichCompany(company, false);
+                          // Add delay to avoid rate limiting
+                          await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                      }}
+                      disabled={
+                        selectedHistoryCompanies.size === 0 ||
+                        enrichingCompany !== null ||
+                        historicalCompanies.filter(c => selectedHistoryCompanies.has(c.id) && c?.is_enriched).length === 0
+                      }
+                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      🔄 Re-enrich Selected ({historicalCompanies.filter(c => selectedHistoryCompanies.has(c.id) && c?.is_enriched).length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Select All Row */}
+              {historicalCompanies.length > 0 && (
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectAllHistoryChecked}
+                      onChange={(e) => {
+                        setSelectAllHistoryChecked(e.target.checked)
+                        if (e.target.checked) {
+                          setSelectedHistoryCompanies(new Set(historicalCompanies.map(c => c.id)))
+                        } else {
+                          setSelectedHistoryCompanies(new Set())
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">
+                      Select All ({historicalCompanies.length} companies)
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* Historical Companies List */}
+              {historicalCompanies.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                  <p className="text-gray-500 mb-2">No search history found</p>
+                  <p className="text-sm text-gray-400">Companies from your searches will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historicalCompanies.map((company) => (
+                    <div
+                      key={company.id}
+                      className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedHistoryCompanies.has(company.id)}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedHistoryCompanies)
+                            if (e.target.checked) {
+                              newSelected.add(company.id)
+                            } else {
+                              newSelected.delete(company.id)
+                              setSelectAllHistoryChecked(false)
+                            }
+                            setSelectedHistoryCompanies(newSelected)
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 mt-1"
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                              {company.name}
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                enrichmentStatus[company.id] === 'enriching'
+                                  ? 'bg-blue-100 text-blue-800 animate-pulse'
+                                  : enrichmentStatus[company.id] === 'success'
+                                  ? 'bg-green-100 text-green-800'
+                                  : enrichmentStatus[company.id] === 'error'
+                                  ? 'bg-red-100 text-red-800'
+                                  : company?.is_enriched
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {enrichmentStatus[company.id] === 'enriching'
+                                  ? '⏳ Enriching...'
+                                  : enrichmentStatus[company.id] === 'success'
+                                  ? '✓ Enriched!'
+                                  : enrichmentStatus[company.id] === 'error'
+                                  ? '✗ Error'
+                                  : company?.is_enriched
+                                  ? 'Enriched'
+                                  : 'Pending'}
+                              </span>
+                            </h3>
+                            <button
+                              onClick={() => setSelectedCompanyDetails(company)}
+                              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 whitespace-nowrap"
+                            >
+                              View Details
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400">📍</span>
+                              <span className="truncate">{company.location || company.formatted_address || company.address || 'Location not available'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400">📞</span>
+                              <span>{company.phone || company.formatted_phone_number || 'Phone not available'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-400">📅</span>
+                              <span>Added: {new Date(company.created_at).toLocaleDateString()}</span>
+                            </div>
+                            {company.website && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-400">🌐</span>
+                                <a
+                                  href={company.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline truncate"
+                                >
+                                  {company.website}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
