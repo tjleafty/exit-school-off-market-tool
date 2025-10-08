@@ -7,13 +7,13 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
   try {
-    console.log('=== CSV EXPORT API CALLED ===')
+    console.log('=== EXCEL EXPORT API CALLED ===')
     console.log('Runtime:', runtime)
     console.log('Dynamic:', dynamic)
 
     const { date, userId, companyIds } = await request.json()
 
-    console.log('Export request:', { date, userId, companyIds: companyIds?.length })
+    console.log('Excel export request:', { date, userId, companyIds: companyIds?.length })
 
     let companies = []
     let targetDate = new Date()
@@ -105,11 +105,11 @@ export async function POST(request) {
     })
 
   } catch (error) {
-    console.error('CSV export error:', error)
+    console.error('Excel export error:', error)
     console.error('Error message:', error.message)
     console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { error: 'Failed to export CSV', details: error.message },
+      { error: 'Failed to export Excel file', details: error.message },
       { status: 500 }
     )
   }

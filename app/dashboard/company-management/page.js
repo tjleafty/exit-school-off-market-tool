@@ -464,7 +464,7 @@ export default function CompanyManagementPage() {
       const companyIds = selectedData.map(c => c.id)
 
       // Call API to generate multi-sheet Excel export
-      const response = await fetch('/api/companies/export/csv', {
+      const response = await fetch('/api/companies/export/excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -673,7 +673,7 @@ export default function CompanyManagementPage() {
                         onClick={() => exportSelected(true)}
                         className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
                       >
-                        📊 Export CSV ({selectedSearchCompanies.length})
+                        📊 Export Excel ({selectedSearchCompanies.length})
                       </button>
                       <button
                         onClick={addToList}
@@ -901,7 +901,7 @@ export default function CompanyManagementPage() {
                           disabled={exportingCSV || selectedSavedCompanies.size === 0}
                           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          📊 Export Selected ({selectedSavedCompanies.size})
+                          📊 Export Excel ({selectedSavedCompanies.size})
                         </button>
                         <button
                           onClick={async () => {
@@ -1204,7 +1204,7 @@ export default function CompanyManagementPage() {
                         setExportingCSV(true);
 
                         // Call API to generate multi-sheet Excel export for single company
-                        const response = await fetch('/api/companies/export/csv', {
+                        const response = await fetch('/api/companies/export/excel', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
