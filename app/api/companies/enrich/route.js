@@ -128,13 +128,34 @@ export async function POST(request) {
 
     console.log('Step 3: Enrichment data collected from all sources')
 
-    // Update company with enriched status and data
-    console.log('Step 3.5: Updating company with ID:', company.id)
+    // Merge new enrichment data with existing data (preserve existing fields)
+    console.log('Step 3.5: Merging enrichment data with existing data')
+    const existingEnrichmentData = company.enrichment_data || {}
+
+    // Deep merge function to preserve existing nested data
+    const mergedEnrichmentData = {
+      zoominfo_data: {
+        ...(existingEnrichmentData.zoominfo_data || {}),
+        ...(enrichmentData.zoominfo_data || {})
+      },
+      hunter_data: {
+        ...(existingEnrichmentData.hunter_data || {}),
+        ...(enrichmentData.hunter_data || {})
+      },
+      apollo_data: {
+        ...(existingEnrichmentData.apollo_data || {}),
+        ...(enrichmentData.apollo_data || {})
+      },
+      enriched_at: enrichmentData.enriched_at,
+      first_enriched_at: existingEnrichmentData.first_enriched_at || enrichmentData.enriched_at
+    }
+
+    console.log('Step 3.6: Updating company with ID:', company.id)
     const { data: updatedCompany, error: updateError } = await supabase
       .from('companies')
       .update({
         is_enriched: true,
-        enrichment_data: enrichmentData
+        enrichment_data: mergedEnrichmentData
       })
       .eq('id', company.id)
       .select()
