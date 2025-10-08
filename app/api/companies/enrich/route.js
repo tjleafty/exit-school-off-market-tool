@@ -347,7 +347,7 @@ async function callZoomInfoAPI(company) {
       }],
       outputFields: [
         // Basic Company Info (API allowed only)
-        'id', 'name', 'website', 'phone', 'fax', 'ticker', 'foundedYear',
+        'id', 'name', 'website', 'phone', 'fax', 'ticker', 'foundedYear', 'companyDescription',
 
         // Financial
         'revenue', 'revenueRange',
