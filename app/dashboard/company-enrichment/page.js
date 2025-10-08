@@ -495,8 +495,8 @@ export default function CompanyManagementPage() {
 
       const worksheet = XLSX.utils.json_to_sheet(selectedData.map(company => ({
         'Company Name': company.name || '',
-        'Address': company.formatted_address || company.vicinity || '',
-        'Phone': company.formatted_phone_number || '',
+        'Address': company.formatted_address || company.address || company.location || company.vicinity || '',
+        'Phone': company.formatted_phone_number || company.phone || '',
         'Website': company.website || '',
         'Rating': company.rating || '',
         'Total Reviews': company.user_ratings_total || '',
