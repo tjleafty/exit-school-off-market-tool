@@ -478,7 +478,7 @@ export default function CompanyManagementPage() {
 
   const exportSelected = async (isFromSearch = true) => {
     const selectedData = isFromSearch
-      ? searchResults.filter(company => selectedSearchCompanies.includes(company.id))
+      ? searchResults.filter(company => selectedSearchCompanies.includes(company.place_id || company.id))
       : savedCompanies.filter(company => selectedSavedCompanies.has(company.id))
 
     if (selectedData.length === 0) {
@@ -486,10 +486,40 @@ export default function CompanyManagementPage() {
       return
     }
 
+    // For search results (not saved), use client-side CSV export
+    if (isFromSearch) {
+      const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Reviews', 'Place ID']
+      const csvContent = [
+        headers.join(','),
+        ...selectedData.map(company => [
+          `"${company.name || ''}"`,
+          `"${company.formatted_address || company.vicinity || ''}"`,
+          `"${company.formatted_phone_number || ''}"`,
+          `"${company.website || ''}"`,
+          company.rating || '',
+          company.user_ratings_total || '',
+          company.place_id || ''
+        ].join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `search-results-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      alert(`Exported ${selectedData.length} companies successfully!`)
+      return
+    }
+
     try {
       setExportingCSV(true)
 
-      // Get company IDs
+      // Get company IDs (only for saved companies)
       const companyIds = selectedData.map(c => c.id)
 
       // Call API to generate multi-sheet Excel export
