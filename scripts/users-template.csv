@@ -1,0 +1,4 @@
+email,full_name,company_name,role
+user1@example.com,John Smith,ACME Corporation,USER
+user2@example.com,Jane Doe,Tech Startup Inc,USER
+admin@example.com,Admin User,Exit School,ADMIN
