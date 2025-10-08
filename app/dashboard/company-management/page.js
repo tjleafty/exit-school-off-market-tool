@@ -486,33 +486,36 @@ export default function CompanyManagementPage() {
       return
     }
 
-    // For search results (not saved), use client-side CSV export
+    // For search results (not saved), use client-side Excel export
     if (isFromSearch) {
-      const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Reviews', 'Place ID']
-      const csvContent = [
-        headers.join(','),
-        ...selectedData.map(company => [
-          `"${company.name || ''}"`,
-          `"${company.formatted_address || company.vicinity || ''}"`,
-          `"${company.formatted_phone_number || ''}"`,
-          `"${company.website || ''}"`,
-          company.rating || '',
-          company.user_ratings_total || '',
-          company.place_id || ''
-        ].join(','))
-      ].join('\n')
+      // Import XLSX dynamically for client-side Excel generation
+      const XLSX = await import('xlsx')
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const worksheet = XLSX.utils.json_to_sheet(selectedData.map(company => ({
+        'Company Name': company.name || '',
+        'Address': company.formatted_address || company.vicinity || '',
+        'Phone': company.formatted_phone_number || '',
+        'Website': company.website || '',
+        'Rating': company.rating || '',
+        'Total Reviews': company.user_ratings_total || '',
+        'Place ID': company.place_id || ''
+      })))
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Search Results')
+
+      const excelBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' })
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `search-results-${new Date().toISOString().split('T')[0]}.csv`
+      a.download = `search-results-${new Date().toISOString().split('T')[0]}.xlsx`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      alert(`Exported ${selectedData.length} companies successfully!`)
+      alert(`Exported ${selectedData.length} companies to Excel successfully!`)
       return
     }
 
