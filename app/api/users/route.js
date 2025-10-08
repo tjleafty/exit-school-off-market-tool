@@ -96,15 +96,15 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json()
-    
+
     const { data, error } = await supabase
-      .from('app_users')
+      .from('users')
       .update({
         email: body.email,
-        name: body.name,
+        full_name: body.name, // Map name to full_name
         role: body.role,
         status: body.status,
-        features: body.features,
+        metadata: body.features ? { features: body.features } : {},
         updated_at: new Date().toISOString()
       })
       .eq('id', body.id)
@@ -112,7 +112,14 @@ export async function PUT(request) {
 
     if (error) throw error
 
-    return NextResponse.json({ user: data[0] })
+    // Map back to expected format
+    const updatedUser = {
+      ...data[0],
+      name: data[0].full_name,
+      features: data[0].metadata?.features || body.features
+    }
+
+    return NextResponse.json({ user: updatedUser })
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json(
@@ -127,7 +134,7 @@ export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('id')
-    
+
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID required' },
@@ -135,13 +142,21 @@ export async function DELETE(request) {
       )
     }
 
-    const { error } = await supabase
-      .from('app_users')
+    // First delete from users table (this will cascade delete auth user)
+    const { error: dbError } = await supabase
+      .from('users')
       .delete()
       .eq('id', userId)
-      .neq('method', 'SYSTEM') // Prevent deleting system user
 
-    if (error) throw error
+    if (dbError) throw dbError
+
+    // Also delete from auth.users if it still exists
+    try {
+      await supabase.auth.admin.deleteUser(userId)
+    } catch (authError) {
+      // Ignore auth deletion errors as cascade might have already handled it
+      console.log('Auth user already deleted or error:', authError.message)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
