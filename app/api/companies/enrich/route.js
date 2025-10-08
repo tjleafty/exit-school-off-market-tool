@@ -446,11 +446,9 @@ async function callZoomInfoAPI(company) {
                 companyName: company.name
               }],
               outputFields: [
-                'id', 'firstName', 'lastName', 'middleName',
-                'email', 'phone', 'mobilePhone',
-                'jobTitle', 'managementLevel', 'jobFunction',
-                'companyId', 'companyName',
-                'contactAccuracyScore', 'lastUpdatedDate'
+                'id', 'firstName', 'lastName',
+                'email', 'phone',
+                'jobTitle', 'companyId', 'companyName'
               ]
             })
           })
