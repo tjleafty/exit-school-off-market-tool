@@ -321,11 +321,19 @@ function generateZoomInfoSheetData(companies, exportDate) {
   ]
 
   const dataRows = companies
-    .filter(c => c.enrichment_data?.zoominfo_data && Object.keys(c.enrichment_data.zoominfo_data).length > 0)
+    .filter(c => {
+      try {
+        return c.enrichment_data?.zoominfo_data && Object.keys(c.enrichment_data.zoominfo_data).length > 0
+      } catch (e) {
+        console.error('Error filtering ZoomInfo data for company:', c.id, e)
+        return false
+      }
+    })
     .flatMap(company => {
-      const zoomData = company.enrichment_data?.zoominfo_data || {}
-      const companyData = zoomData.company || {}
-      const contactsArray = zoomData.contacts || (zoomData.contact ? [zoomData.contact] : [])
+      try {
+        const zoomData = company.enrichment_data?.zoominfo_data || {}
+        const companyData = zoomData.company || {}
+        const contactsArray = zoomData.contacts || (zoomData.contact ? [zoomData.contact] : [])
 
       // If no contacts, create one row with company data only
       if (contactsArray.length === 0) {
@@ -378,6 +386,10 @@ function generateZoomInfoSheetData(companies, exportDate) {
 
         ...getCompanyDataRow(company, companyData, zoomData)
       ])
+      } catch (error) {
+        console.error('Error processing ZoomInfo data for company:', company.id, error)
+        return [[company.name || 'N/A', company.id || '', 'Error processing data', ...Array(headers.length - 3).fill('')]]
+      }
     })
 
   // Helper function to extract company data row
@@ -490,10 +502,18 @@ function generateHunterSheetData(companies, exportDate) {
   ]
 
   const dataRows = companies
-    .filter(c => c.enrichment_data?.hunter_data && Object.keys(c.enrichment_data.hunter_data).length > 0)
+    .filter(c => {
+      try {
+        return c.enrichment_data?.hunter_data && Object.keys(c.enrichment_data.hunter_data).length > 0
+      } catch (e) {
+        console.error('Error filtering Hunter data for company:', c.id, e)
+        return false
+      }
+    })
     .map(company => {
-      const hunterData = company.enrichment_data?.hunter_data || {}
-      const emails = hunterData.emails || []
+      try {
+        const hunterData = company.enrichment_data?.hunter_data || {}
+        const emails = hunterData.emails || []
 
       // If there are multiple emails, create a row for each
       if (emails.length > 0) {
@@ -526,6 +546,10 @@ function generateHunterSheetData(companies, exportDate) {
           company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
           hunterData.source || 'hunter'
         ]]
+      }
+      } catch (error) {
+        console.error('Error processing Hunter data for company:', company.id, error)
+        return [[company.name || 'N/A', company.id || '', 'Error processing data', ...Array(headers.length - 3).fill('')]]
       }
     })
     .flat()
@@ -615,11 +639,19 @@ function generateApolloSheetData(companies, exportDate) {
   ]
 
   const dataRows = companies
-    .filter(c => c.enrichment_data?.apollo_data && Object.keys(c.enrichment_data.apollo_data).length > 0)
+    .filter(c => {
+      try {
+        return c.enrichment_data?.apollo_data && Object.keys(c.enrichment_data.apollo_data).length > 0
+      } catch (e) {
+        console.error('Error filtering Apollo data for company:', c.id, e)
+        return false
+      }
+    })
     .flatMap(company => {
-      const apolloData = company.enrichment_data?.apollo_data || {}
-      const organizations = apolloData.organizations || []
-      const people = apolloData.people || []
+      try {
+        const apolloData = company.enrichment_data?.apollo_data || {}
+        const organizations = apolloData.organizations || []
+        const people = apolloData.people || []
 
       if (organizations.length === 0) {
         return [[
@@ -763,6 +795,10 @@ function generateApolloSheetData(companies, exportDate) {
           company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available',
           apolloData.source || 'apollo'
         ]]
+      }
+      } catch (error) {
+        console.error('Error processing Apollo data for company:', company.id, error)
+        return [[company.name || 'N/A', company.id || '', 'Error processing data', ...Array(headers.length - 3).fill('')]]
       }
     })
 
