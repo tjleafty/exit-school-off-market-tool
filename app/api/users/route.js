@@ -10,9 +10,9 @@ function hashPassword(password) {
 export async function GET() {
   try {
     console.log('GET /api/users - Fetching users from database')
-    
+
     const { data, error } = await supabase
-      .from('app_users')
+      .from('users')
       .select('*')
       .order('created_at', { ascending: true })
 
@@ -20,7 +20,17 @@ export async function GET() {
 
     if (error) throw error
 
-    return NextResponse.json({ users: data })
+    // Map users table fields to app_users format for backwards compatibility
+    const mappedUsers = data.map(user => ({
+      ...user,
+      name: user.full_name || user.email.split('@')[0], // Map full_name to name
+      method: 'MANUAL', // Default method since users table doesn't track this
+      join_date: user.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      last_login: user.last_seen || null,
+      has_password: true // All auth users have passwords
+    }))
+
+    return NextResponse.json({ users: mappedUsers })
   } catch (error) {
     console.error('Error fetching users:', error)
     console.error('Error details:', error.message, error.details, error.hint)
