@@ -71,10 +71,15 @@ export async function POST(request) {
 
     console.log('Auth user created:', authData.user.id)
 
-    // Update the users table with additional info
+    // Wait a moment for the trigger to create the user record
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Update the users table with additional info using upsert
     const { data, error } = await supabase
       .from('users')
-      .update({
+      .upsert({
+        id: authData.user.id,
+        email: body.email,
         full_name: body.name,
         role: body.role || 'USER',
         status: body.status || 'ACTIVE',
@@ -87,11 +92,12 @@ export async function POST(request) {
           method: body.method || 'MANUAL',
           created_by: body.createdBy || 'Admin'
         }
+      }, {
+        onConflict: 'id'
       })
-      .eq('id', authData.user.id)
       .select()
 
-    console.log('Users table update response:', { data, error })
+    console.log('Users table upsert response:', { data, error })
 
     if (error) {
       console.error('Database error:', error)
