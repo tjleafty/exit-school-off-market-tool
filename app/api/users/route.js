@@ -47,41 +47,69 @@ export async function POST(request) {
     console.log('POST /api/users - Starting user creation')
     const body = await request.json()
     console.log('Request body:', body)
-    
-    const userData = {
+
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: body.email,
-      name: body.name,
-      role: body.role || 'USER',
-      status: body.status || 'ACTIVE',
-      method: body.method || 'MANUAL',
-      has_password: body.hasPassword || false,
-      features: body.features || {
-        companySearch: true,
-        companyEnrichment: true,
-        businessIntelligence: true
-      },
-      created_by: body.createdBy || 'Admin',
-      join_date: new Date().toISOString().split('T')[0]
+      password: body.password || Math.random().toString(36).slice(-8), // Generate random password for invited users
+      email_confirm: true, // Auto-confirm email for manually created users
+      user_metadata: {
+        full_name: body.name,
+        role: body.role || 'USER',
+        features: body.features || {
+          companySearch: true,
+          companyEnrichment: true,
+          businessIntelligence: true
+        }
+      }
+    })
+
+    if (authError) {
+      console.error('Auth error:', authError)
+      throw authError
     }
 
-    // If this is a manual user with a password, hash and store it
-    if (body.method === 'MANUAL' && body.password && body.hasPassword) {
-      userData.password_hash = hashPassword(body.password)
-      console.log('Setting password for manual user')
-    }
-    
-    console.log('User data to insert:', userData)
-    
+    console.log('Auth user created:', authData.user.id)
+
+    // Update the users table with additional info
     const { data, error } = await supabase
-      .from('app_users')
-      .insert([userData])
+      .from('users')
+      .update({
+        full_name: body.name,
+        role: body.role || 'USER',
+        status: body.status || 'ACTIVE',
+        metadata: {
+          features: body.features || {
+            companySearch: true,
+            companyEnrichment: true,
+            businessIntelligence: true
+          },
+          method: body.method || 'MANUAL',
+          created_by: body.createdBy || 'Admin'
+        }
+      })
+      .eq('id', authData.user.id)
       .select()
 
-    console.log('Supabase response:', { data, error })
+    console.log('Users table update response:', { data, error })
 
-    if (error) throw error
+    if (error) {
+      console.error('Database error:', error)
+      throw error
+    }
 
-    return NextResponse.json({ user: data[0] })
+    // Map back to expected format for the frontend
+    const newUser = {
+      ...data[0],
+      name: data[0].full_name,
+      method: data[0].metadata?.method || 'MANUAL',
+      join_date: data[0].created_at?.split('T')[0],
+      last_login: data[0].last_seen,
+      has_password: true,
+      features: data[0].metadata?.features
+    }
+
+    return NextResponse.json({ user: newUser })
   } catch (error) {
     console.error('Error creating user:', error)
     console.error('Error details:', error.message, error.details, error.hint)
