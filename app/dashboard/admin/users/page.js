@@ -73,7 +73,9 @@ export default function AdminUserManagementPage() {
       })
 
       const data = await response.json()
-      
+
+      console.log('Create user response:', response.status, data)
+
       if (data.user) {
         await fetchUsers() // Refresh user list
         setShowCreateForm(false)
@@ -87,11 +89,12 @@ export default function AdminUserManagementPage() {
           sendInvite: false
         })
       } else {
-        alert('Failed to create user')
+        console.error('Failed to create user. Response:', data)
+        alert(`Failed to create user: ${data.error || 'Unknown error'}\n${data.details || ''}`)
       }
     } catch (error) {
       console.error('Error creating user:', error)
-      alert('Failed to create user')
+      alert(`Failed to create user: ${error.message}`)
     }
   }
 
