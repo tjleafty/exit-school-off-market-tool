@@ -342,6 +342,8 @@ export default function SystemSettingsPage() {
     setUpdatingSource(sourceName)
 
     try {
+      console.log('Updating source priority:', { sourceName, newPriority })
+
       const response = await fetch('/api/settings/enrichment-sources', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -351,18 +353,21 @@ export default function SystemSettingsPage() {
         })
       })
 
+      console.log('Response status:', response.status)
       const data = await response.json()
+      console.log('Response data:', data)
 
       if (data.success) {
         // Reload sources to reflect any swaps
         await loadEnrichmentSources()
+        console.log('Successfully updated and reloaded sources')
       } else {
         console.error('Failed to update source priority:', data.error)
-        alert('Failed to update priority. Please try again.')
+        alert(`Failed to update priority: ${data.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error updating source priority:', error)
-      alert('Error updating priority. Please try again.')
+      alert(`Error updating priority: ${error.message}`)
     } finally {
       setUpdatingSource(null)
     }
