@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
+import { supabase, supabaseAdmin } from '../../../../lib/supabase'
 
 export const runtime = 'nodejs'
 
@@ -64,7 +64,7 @@ export async function POST(request) {
       try {
         console.log(`Inserting company ${i + 1}/${companiesData.length}:`, companiesData[i].name)
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
           .from('companies')
           .upsert([companiesData[i]], {
             onConflict: 'place_id',

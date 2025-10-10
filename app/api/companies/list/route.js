@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
+import { supabase, supabaseAdmin } from '../../../../lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -12,7 +12,7 @@ export async function GET(request) {
     const userId = url.searchParams.get('userId')
     const enrichedOnly = url.searchParams.get('enriched') === 'true'
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('companies')
       .select('*')
       .order('created_at', { ascending: false })
