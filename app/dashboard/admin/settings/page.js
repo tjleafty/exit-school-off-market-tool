@@ -129,11 +129,39 @@ export default function SystemSettingsPage() {
 
   const testApiConnection = async (api) => {
     setTestingApi(api)
-    
+
     try {
+      // Clay is webhook-based, so just validate the webhook URL format
+      if (api === 'clay') {
+        const webhookUrl = apiKeys[api]?.webhookUrl || ''
+        const isValidUrl = webhookUrl.startsWith('http://') || webhookUrl.startsWith('https://')
+
+        const updatedApiKeys = {
+          ...apiKeys,
+          [api]: {
+            ...apiKeys[api] || { value: '', status: 'Not Connected' },
+            status: isValidUrl ? 'Connected' : 'Connection Failed'
+          }
+        }
+
+        setApiKeys(updatedApiKeys)
+
+        // Update database status
+        await fetch('/api/settings/api-keys', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service: api,
+            status: isValidUrl ? 'Connected' : 'Connection Failed'
+          })
+        })
+
+        return
+      }
+
+      // For other APIs, use test endpoints
       let testEndpoint = ''
-      
-      // Use specific test endpoints for each API
+
       switch(api) {
         case 'google_places':
           testEndpoint = '/api/test-google'
@@ -144,17 +172,17 @@ export default function SystemSettingsPage() {
         default:
           testEndpoint = `/api/test-${api}`
       }
-      
+
       const response = await fetch(testEndpoint)
       const data = await response.json()
-      
+
       let success = false
       if (api === 'google_places') {
         success = data.tests?.some(test => test.success) || false
       } else {
         success = response.ok
       }
-      
+
       const updatedApiKeys = {
         ...apiKeys,
         [api]: {
@@ -162,9 +190,9 @@ export default function SystemSettingsPage() {
           status: success ? 'Connected' : 'Connection Failed'
         }
       }
-      
+
       setApiKeys(updatedApiKeys)
-      
+
       // Update database status
       await fetch('/api/settings/api-keys', {
         method: 'PUT',
@@ -174,7 +202,7 @@ export default function SystemSettingsPage() {
           status: success ? 'Connected' : 'Connection Failed'
         })
       })
-      
+
     } catch (error) {
       console.error(`Error testing ${api} API:`, error)
       const updatedApiKeys = {

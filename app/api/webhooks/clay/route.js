@@ -14,6 +14,18 @@ export async function POST(request) {
   try {
     console.log('=== CLAY WEBHOOK RECEIVED ===')
 
+    // Optional: Verify authorization token if configured
+    const authHeader = request.headers.get('authorization')
+    const expectedToken = process.env.CLAY_WEBHOOK_SECRET
+
+    if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+      console.error('Unauthorized Clay webhook attempt')
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     console.log('Clay webhook payload:', JSON.stringify(body, null, 2))
 
