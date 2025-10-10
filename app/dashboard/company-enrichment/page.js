@@ -82,10 +82,13 @@ export default function CompanyManagementPage() {
     try {
       setLoadingSaved(true)
       console.log('Loading saved companies from database...')
+      console.log('User object:', user)
+      console.log('User ID being used:', user?.id)
       const response = await fetch(`/api/companies/list?userId=${user?.id}`)
 
       const data = await response.json()
       console.log('API Response:', data)
+      console.log('API URL called:', `/api/companies/list?userId=${user?.id}`)
 
       if (data.success) {
         console.log('Total companies from API:', data.companies.length)
@@ -337,6 +340,10 @@ export default function CompanyManagementPage() {
       alert('No companies selected')
       return
     }
+
+    console.log('=== SAVING COMPANIES ===')
+    console.log('User object in addToList:', user)
+    console.log('User ID being sent to save API:', user?.id)
 
     try {
       const response = await fetch('/api/companies/save', {
