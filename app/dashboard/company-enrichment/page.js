@@ -1098,9 +1098,9 @@ export default function CompanyManagementPage() {
                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-3"
                               />
                               <div className="flex-1">
-                                <div className="flex items-center">
+                                <div className="flex items-center gap-2">
                                   <h4 className="text-lg font-medium text-gray-900">{company.name}</h4>
-                                  <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                     enrichmentStatus[company.id] === 'enriching'
                                       ? 'bg-blue-100 text-blue-800 animate-pulse'
                                       : enrichmentStatus[company.id] === 'success'
@@ -1121,6 +1121,21 @@ export default function CompanyManagementPage() {
                                       ? 'Enriched'
                                       : 'Pending'}
                                   </span>
+                                  {company.clay_enrichment_status && (
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                      company.clay_enrichment_status === 'pending'
+                                        ? 'bg-purple-100 text-purple-800 animate-pulse'
+                                        : company.clay_enrichment_status === 'completed'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
+                                    }`}>
+                                      {company.clay_enrichment_status === 'pending'
+                                        ? '🏺 Clay Pending...'
+                                        : company.clay_enrichment_status === 'completed'
+                                        ? '🏺 Clay Complete'
+                                        : '🏺 Clay Failed'}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
                                   <div>📧 {company.email || 'No email'}</div>

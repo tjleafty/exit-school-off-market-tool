@@ -63,11 +63,13 @@ export async function POST(request) {
       enriched_at: new Date().toISOString()
     }
 
-    // Update company with Clay enrichment data
+    // Update company with Clay enrichment data and mark as completed
     const { error: updateError } = await supabase
       .from('companies')
       .update({
         enrichment_data: updatedEnrichmentData,
+        clay_enrichment_status: 'completed',
+        clay_enrichment_completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', company_id)

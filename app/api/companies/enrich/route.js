@@ -169,12 +169,23 @@ export async function POST(request) {
     }
 
     console.log('Step 3.6: Updating company with ID:', company.id)
+
+    // Prepare update object
+    const updateData = {
+      is_enriched: true,
+      enrichment_data: mergedEnrichmentData
+    }
+
+    // If Clay enrichment was triggered, set status to pending
+    if (activeSources.includes('clay') && enrichmentData.clay_data?.status === 'pending') {
+      updateData.clay_enrichment_status = 'pending'
+      updateData.clay_enrichment_requested_at = new Date().toISOString()
+      console.log('Clay enrichment status set to PENDING')
+    }
+
     const { data: updatedCompany, error: updateError } = await supabase
       .from('companies')
-      .update({
-        is_enriched: true,
-        enrichment_data: mergedEnrichmentData
-      })
+      .update(updateData)
       .eq('id', company.id)
       .select()
       .single()
