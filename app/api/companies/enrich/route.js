@@ -83,6 +83,7 @@ export async function POST(request) {
       zoominfo_data: {},
       hunter_data: {},
       apollo_data: {},
+      clay_data: {},
       enriched_at: new Date().toISOString()
     }
 
@@ -126,6 +127,19 @@ export async function POST(request) {
       }
     }
 
+    // Clay enrichment (asynchronous - sends data to Clay webhook)
+    if (activeSources.includes('clay')) {
+      console.log('Step 2.5: Sending data to Clay webhook for async enrichment...')
+      try {
+        const clayResult = await sendToClayWebhook(company)
+        enrichmentData.clay_data = clayResult
+        console.log('✓ Clay webhook triggered - enrichment will complete asynchronously')
+      } catch (error) {
+        console.error('Clay webhook error:', error.message)
+        enrichmentData.clay_data = { error: error.message }
+      }
+    }
+
     console.log('Step 3: Enrichment data collected from all sources')
 
     // Merge new enrichment data with existing data (preserve existing fields)
@@ -145,6 +159,10 @@ export async function POST(request) {
       apollo_data: {
         ...(existingEnrichmentData.apollo_data || {}),
         ...(enrichmentData.apollo_data || {})
+      },
+      clay_data: {
+        ...(existingEnrichmentData.clay_data || {}),
+        ...(enrichmentData.clay_data || {})
       },
       enriched_at: enrichmentData.enriched_at,
       first_enriched_at: existingEnrichmentData.first_enriched_at || enrichmentData.enriched_at
@@ -859,5 +877,76 @@ async function saveContactsToDatabase(companyId, enrichmentData) {
   } catch (error) {
     console.error('Error in saveContactsToDatabase:', error)
     return totalSaved
+  }
+}
+
+// Helper function to send company data to Clay webhook
+async function sendToClayWebhook(company) {
+  console.log('sendToClayWebhook: Starting for company:', company.name)
+
+  // Get Clay webhook URL from database
+  const { data: apiKeyData } = await supabase
+    .from('api_keys')
+    .select('webhook_url, encrypted_key')
+    .eq('service', 'clay')
+    .eq('status', 'Connected')
+    .single()
+
+  if (!apiKeyData?.webhook_url) {
+    throw new Error('Clay webhook URL not configured')
+  }
+
+  const webhookUrl = apiKeyData.webhook_url
+  const authKey = apiKeyData.encrypted_key // Optional authorization key
+
+  console.log('Sending to Clay webhook:', webhookUrl)
+
+  // Prepare the payload for Clay
+  const payload = {
+    company_id: company.id,
+    company_name: company.name,
+    website: company.website,
+    domain: company.website ? new URL(company.website).hostname : null,
+    address: company.formatted_address || company.location,
+    city: company.city,
+    state: company.state,
+    phone: company.phone,
+    place_id: company.place_id
+  }
+
+  console.log('Clay webhook payload:', JSON.stringify(payload, null, 2))
+
+  // Send POST request to Clay webhook
+  const headers = {
+    'Content-Type': 'application/json'
+  }
+
+  // Add authorization header if configured
+  if (authKey) {
+    headers['Authorization'] = `Bearer ${authKey}`
+  }
+
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload)
+  })
+
+  console.log('Clay webhook response status:', response.status)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Clay webhook error response:', errorText)
+    throw new Error(`Clay webhook failed: ${response.status} - ${errorText}`)
+  }
+
+  const responseData = await response.json().catch(() => ({}))
+  console.log('Clay webhook response:', responseData)
+
+  return {
+    status: 'pending',
+    webhook_triggered_at: new Date().toISOString(),
+    message: 'Clay enrichment initiated - data will be received via webhook callback',
+    source: 'clay'
   }
 }
