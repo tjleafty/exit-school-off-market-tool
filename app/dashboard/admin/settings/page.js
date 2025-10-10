@@ -10,6 +10,7 @@ export default function SystemSettingsPage() {
     hunter: { value: '', status: 'Not Connected' },
     apollo: { value: '', status: 'Not Connected' },
     zoominfo: { value: '', username: '', clientId: '', status: 'Not Connected' },
+    clay: { value: '', webhookUrl: '', callbackSecret: '', status: 'Not Connected' },
     resend: { value: '', status: 'Not Connected' },
   })
 
@@ -36,6 +37,8 @@ export default function SystemSettingsPage() {
                     value: keyData.encrypted_key || '',
                     username: keyData.username || '',
                     clientId: keyData.client_id || '',
+                    webhookUrl: keyData.webhook_url || '',
+                    callbackSecret: keyData.callback_secret || '',
                     status: keyData.status || 'Connected'
                   }
                 }
@@ -101,6 +104,13 @@ export default function SystemSettingsPage() {
       placeholder: '-----BEGIN PRIVATE KEY-----...',
       docs: 'https://api-docs.zoominfo.com/',
       requiresJWT: true
+    },
+    clay: {
+      name: 'Clay API',
+      description: 'Async webhook-based enrichment with 150+ data providers (requires Webhook URL and optional Callback Secret)',
+      placeholder: 'your-clay-api-key...',
+      docs: 'https://docs.clay.com/',
+      requiresWebhook: true
     },
     resend: {
       name: 'Resend API',
@@ -192,6 +202,12 @@ export default function SystemSettingsPage() {
       if (api === 'zoominfo') {
         requestBody.username = apiKeys[api]?.username || ''
         requestBody.client_id = apiKeys[api]?.clientId || ''
+      }
+
+      // Add webhook fields for Clay
+      if (api === 'clay') {
+        requestBody.webhook_url = apiKeys[api]?.webhookUrl || ''
+        requestBody.callback_secret = apiKeys[api]?.callbackSecret || ''
       }
 
       const response = await fetch('/api/settings/api-keys', {
@@ -476,9 +492,57 @@ export default function SystemSettingsPage() {
                     </div>
                   )}
 
+                  {/* Clay requires webhook configuration */}
+                  {config.requiresWebhook && (
+                    <div className="mb-4 space-y-3">
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md mb-3">
+                        <p className="text-sm text-blue-800">
+                          <strong>Setup Instructions:</strong> Create a webhook table in Clay, copy the webhook URL, and paste it below.
+                          Optionally set a callback secret for verification.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Clay API Key
+                        </label>
+                        <input
+                          type="password"
+                          placeholder={config.placeholder}
+                          value={apiKeys[key]?.value || ''}
+                          onChange={(e) => handleApiKeyChange(key, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Clay Webhook URL <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="https://clay.com/webhooks/..."
+                          value={apiKeys[key]?.webhookUrl || ''}
+                          onChange={(e) => handleApiKeyChange(key, e.target.value, 'webhookUrl')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Callback Secret (Optional)
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Optional secret for verifying callbacks"
+                          value={apiKeys[key]?.callbackSecret || ''}
+                          onChange={(e) => handleApiKeyChange(key, e.target.value, 'callbackSecret')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Standard API key input for other services */}
-                  <div className={`flex space-x-3 ${config.requiresJWT ? 'mt-2' : ''}`}>
-                    {!config.requiresJWT && (
+                  <div className={`flex space-x-3 ${config.requiresJWT || config.requiresWebhook ? 'mt-2' : ''}`}>
+                    {!config.requiresJWT && !config.requiresWebhook && (
                       <input
                         type="password"
                         placeholder={config.placeholder}

@@ -139,6 +139,11 @@ function generateMultiSheetExcel(companies, exportDate) {
   const apolloSheet = XLSX.utils.aoa_to_sheet(apolloData)
   XLSX.utils.book_append_sheet(workbook, apolloSheet, 'Apollo.io Data')
 
+  // Sheet 5: Clay Data
+  const clayData = generateClaySheetData(companies, exportDate)
+  const claySheet = XLSX.utils.aoa_to_sheet(clayData)
+  XLSX.utils.book_append_sheet(workbook, claySheet, 'Clay Data')
+
   // Generate buffer
   const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
   return excelBuffer
@@ -1075,4 +1080,121 @@ function formatDate(dateString) {
 function formatCodeArray(codes) {
   if (!Array.isArray(codes) || codes.length === 0) return 'Not Available'
   return codes.map(code => `${code.id} - ${code.name}`).join('; ')
+}
+
+function generateClaySheetData(companies, exportDate) {
+  const reportInfo = [
+    ['Clay Enrichment Data - All Available Fields'],
+    [''],
+    ['Report Generated:', new Date().toLocaleDateString('en-US') + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })],
+    ['Data Date:', exportDate.toLocaleDateString()],
+    ['Total Companies with Clay Data:', companies.filter(c => c.enrichment_data?.clay_data && Object.keys(c.enrichment_data.clay_data).length > 0).length.toString()],
+    [''],
+    ['Note: Clay uses asynchronous enrichment. Data appears here after Clay processes and returns it via webhook.'],
+    ['']
+  ]
+
+  // Dynamic headers - will be determined by the data available
+  // Start with common expected fields
+  const headers = [
+    'Company Name',
+    'Company ID',
+    'Enrichment Status',
+    'Clay Enriched At'
+  ]
+
+  const dataRows = companies
+    .filter(c => {
+      try {
+        return c.enrichment_data?.clay_data && Object.keys(c.enrichment_data.clay_data).length > 0
+      } catch (e) {
+        console.error('Error filtering Clay data for company:', c.id, e)
+        return false
+      }
+    })
+    .map(company => {
+      try {
+        const clayData = company.enrichment_data?.clay_data || {}
+
+        // Base row data
+        const row = [
+          company.name || 'N/A',
+          company.id || '',
+          clayData.clay_status || 'completed',
+          company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available'
+        ]
+
+        // Add all Clay data fields dynamically
+        // This allows for any fields that Clay returns
+        Object.keys(clayData).forEach(key => {
+          if (!['clay_status', 'enriched_at'].includes(key)) {
+            // Add to headers if not already there
+            if (!headers.includes(key)) {
+              headers.push(key)
+            }
+          }
+        })
+
+        return row
+      } catch (error) {
+        console.error('Error processing Clay data for company:', company.id, error)
+        return [company.name || 'N/A', company.id || '', 'Error processing data', ...Array(headers.length - 3).fill('')]
+      }
+    })
+
+  // Now fill in the dynamic fields for each row
+  const completeDataRows = companies
+    .filter(c => {
+      try {
+        return c.enrichment_data?.clay_data && Object.keys(c.enrichment_data.clay_data).length > 0
+      } catch (e) {
+        return false
+      }
+    })
+    .map(company => {
+      try {
+        const clayData = company.enrichment_data?.clay_data || {}
+
+        // Create row with all header fields
+        const row = []
+
+        headers.forEach(header => {
+          if (header === 'Company Name') {
+            row.push(company.name || 'N/A')
+          } else if (header === 'Company ID') {
+            row.push(company.id || '')
+          } else if (header === 'Enrichment Status') {
+            row.push(clayData.clay_status || 'completed')
+          } else if (header === 'Clay Enriched At') {
+            row.push(company.enrichment_data?.enriched_at || formatDate(company.enriched_at) || 'Not Available')
+          } else {
+            // Dynamic field from Clay data
+            const value = clayData[header]
+            if (value === null || value === undefined) {
+              row.push('Not Available')
+            } else if (typeof value === 'object') {
+              row.push(JSON.stringify(value))
+            } else {
+              row.push(String(value))
+            }
+          }
+        })
+
+        return row
+      } catch (error) {
+        console.error('Error processing Clay data for company:', company.id, error)
+        return [company.name || 'N/A', company.id || '', 'Error processing data', ...Array(headers.length - 3).fill('')]
+      }
+    })
+
+  if (completeDataRows.length === 0) {
+    completeDataRows.push(['No Clay data available yet', ...Array(headers.length - 1).fill('')])
+    completeDataRows.push(['', ...Array(headers.length - 1).fill('')])
+    completeDataRows.push(['Clay enrichment is asynchronous. Data will appear here after:', ...Array(headers.length - 1).fill('')])
+    completeDataRows.push(['1. Company data is sent to Clay webhook', ...Array(headers.length - 1).fill('')])
+    completeDataRows.push(['2. Clay processes the enrichment (may take minutes to hours)', ...Array(headers.length - 1).fill('')])
+    completeDataRows.push(['3. Clay sends enriched data back to your system via webhook', ...Array(headers.length - 1).fill('')])
+  }
+
+  return [...reportInfo, headers, ...completeDataRows]
 }

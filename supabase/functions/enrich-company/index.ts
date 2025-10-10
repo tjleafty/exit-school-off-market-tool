@@ -232,6 +232,19 @@ async function fetchEnrichmentData(company: any, providers: string[]): Promise<E
         console.warn('ZoomInfo enrichment failed:', error.message)
       }
     }
+
+    if (provider === 'clay') {
+      try {
+        const clayData = await fetchFromClay(company)
+        // Clay is async - we just track that we sent the data
+        if (clayData.clay_status) {
+          enrichmentData.sources.clay = 'pending'
+          console.log('✓ Clay enrichment initiated (async)')
+        }
+      } catch (error) {
+        console.warn('Clay enrichment failed:', error.message)
+      }
+    }
   }
 
   // Calculate overall confidence
@@ -394,6 +407,73 @@ async function fetchFromZoomInfo(company: any): Promise<any> {
 
   } catch (error) {
     console.error('ZoomInfo API call failed:', error)
+    return {}
+  }
+}
+
+async function fetchFromClay(company: any): Promise<any> {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  )
+
+  // Get Clay webhook URL from database
+  const { data: apiKeyData, error: apiKeyError } = await supabase
+    .from('api_keys')
+    .select('webhook_url, encrypted_key')
+    .eq('service', 'clay')
+    .single()
+
+  if (apiKeyError || !apiKeyData?.webhook_url) {
+    console.warn('Clay webhook URL not found in database')
+    return {}
+  }
+
+  const webhookUrl = apiKeyData.webhook_url
+  const apiKey = apiKeyData.encrypted_key
+
+  try {
+    // Prepare company data to send to Clay
+    const payload = {
+      company_id: company.id,
+      company_name: company.name,
+      website: company.website || '',
+      domain: company.website ? new URL(company.website).hostname : '',
+      address: company.formatted_address || company.location || '',
+      phone: company.phone || company.formatted_phone_number || '',
+      place_id: company.place_id || ''
+    }
+
+    console.log('📤 Sending company data to Clay webhook:', company.name)
+
+    // Send data to Clay webhook
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Clay webhook error (${response.status}):`, errorText)
+      return {}
+    }
+
+    const result = await response.json()
+    console.log('✓ Data sent to Clay successfully for async enrichment')
+
+    // Store metadata indicating Clay enrichment is pending
+    return {
+      clay_status: 'pending',
+      clay_sent_at: new Date().toISOString(),
+      clay_webhook_response: result
+    }
+
+  } catch (error) {
+    console.error('Clay webhook call failed:', error)
     return {}
   }
 }

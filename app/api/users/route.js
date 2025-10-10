@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase'
+import { supabase, supabaseAdmin } from '../../../lib/supabase'
 import { createHash } from 'crypto'
 
 function hashPassword(password) {
@@ -48,8 +48,8 @@ export async function POST(request) {
     const body = await request.json()
     console.log('Request body:', body)
 
-    // Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Create user in Supabase Auth using admin client
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: body.email,
       password: body.password || Math.random().toString(36).slice(-8), // Generate random password for invited users
       email_confirm: true, // Auto-confirm email for manually created users
@@ -186,7 +186,7 @@ export async function DELETE(request) {
 
     // Also delete from auth.users if it still exists
     try {
-      await supabase.auth.admin.deleteUser(userId)
+      await supabaseAdmin.auth.admin.deleteUser(userId)
     } catch (authError) {
       // Ignore auth deletion errors as cascade might have already handled it
       console.log('Auth user already deleted or error:', authError.message)

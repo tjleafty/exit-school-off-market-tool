@@ -4,15 +4,15 @@ import { supabase } from '../../../../lib/supabase'
 // GET - Retrieve all API keys
 export async function GET() {
   try {
-    // Try to select with JWT fields first (if migration has run)
+    // Try to select with all fields first (if migrations have run)
     let { data, error } = await supabase
       .from('api_keys')
-      .select('service, encrypted_key, username, client_id, status, created_at')
+      .select('service, encrypted_key, username, client_id, webhook_url, callback_secret, status, created_at')
       .order('service')
 
     // If error due to missing columns, fall back to basic fields
     if (error && error.message?.includes('column')) {
-      console.log('JWT columns not yet available, using basic fields')
+      console.log('Extended columns not yet available, using basic fields')
       const fallback = await supabase
         .from('api_keys')
         .select('service, encrypted_key, status, created_at')
@@ -38,7 +38,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { service, encrypted_key, username, client_id, status = 'Saved' } = body
+    const { service, encrypted_key, username, client_id, webhook_url, callback_secret, status = 'Saved' } = body
 
     if (!service || !encrypted_key) {
       return NextResponse.json(
@@ -47,7 +47,7 @@ export async function POST(request) {
       )
     }
 
-    // Prepare upsert data - include username and client_id if provided
+    // Prepare upsert data - include optional fields if provided
     const upsertData = {
       service,
       encrypted_key,
@@ -56,9 +56,12 @@ export async function POST(request) {
     }
 
     // Add optional JWT auth fields if provided (for services like ZoomInfo)
-    // Only add if the columns exist in the database
     if (username !== undefined) upsertData.username = username
     if (client_id !== undefined) upsertData.client_id = client_id
+
+    // Add optional webhook fields if provided (for services like Clay)
+    if (webhook_url !== undefined) upsertData.webhook_url = webhook_url
+    if (callback_secret !== undefined) upsertData.callback_secret = callback_secret
 
     // Use upsert to update if exists, insert if not
     let { data, error } = await supabase
@@ -66,9 +69,9 @@ export async function POST(request) {
       .upsert(upsertData, { onConflict: 'service' })
       .select()
 
-    // If error due to missing columns, try without JWT fields
+    // If error due to missing columns, try without extended fields
     if (error && error.message?.includes('column')) {
-      console.log('JWT columns not yet available, saving without them')
+      console.log('Extended columns not yet available, saving without them')
       const basicData = {
         service,
         encrypted_key,

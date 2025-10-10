@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
-import { createHash } from 'crypto'
-
-function hashPassword(password) {
-  return createHash('sha256').update(password).digest('hex')
-}
+import { supabase, supabaseAdmin } from '../../../../lib/supabase'
 
 // POST - Admin manually reset a user's password
 export async function POST(request) {
@@ -25,10 +20,10 @@ export async function POST(request) {
       )
     }
 
-    // Verify user exists and is not a SYSTEM user
+    // Verify user exists
     const { data: users, error: fetchError } = await supabase
-      .from('app_users')
-      .select('id, email, name, method')
+      .from('users')
+      .select('id, email, full_name, metadata')
       .eq('id', userId)
       .limit(1)
 
@@ -50,27 +45,18 @@ export async function POST(request) {
     const user = users[0]
 
     // Prevent resetting SYSTEM user password
-    if (user.method === 'SYSTEM') {
+    if (user.metadata?.method === 'SYSTEM') {
       return NextResponse.json(
         { error: 'Cannot reset password for system user' },
         { status: 403 }
       )
     }
 
-    const hashedPassword = hashPassword(newPassword)
-
-    // Update password and set has_password to true
-    const { error: updateError } = await supabase
-      .from('app_users')
-      .update({
-        password_hash: hashedPassword,
-        has_password: true,
-        // Clear any existing reset tokens
-        reset_token: null,
-        reset_token_expires: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
+    // Update password using Supabase Auth admin API
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { password: newPassword }
+    )
 
     if (updateError) {
       console.error('Failed to update password:', updateError)
