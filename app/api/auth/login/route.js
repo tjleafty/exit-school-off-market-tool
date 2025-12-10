@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
+import { supabase, supabaseAdmin } from '../../../../lib/supabase'
 import { createHash } from 'crypto'
 
 // Simple password hashing (in production, use bcrypt or similar)
@@ -40,8 +40,8 @@ export async function POST(request) {
       )
     }
 
-    // Get user profile from users table
-    const { data: userProfile, error: profileError } = await supabase
+    // Get user profile from users table using admin client to bypass RLS
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
@@ -64,7 +64,7 @@ export async function POST(request) {
     }
 
     // Update last seen
-    await supabase
+    await supabaseAdmin
       .from('users')
       .update({ last_seen: new Date().toISOString() })
       .eq('id', authData.user.id)
@@ -74,7 +74,7 @@ export async function POST(request) {
       user: {
         id: userProfile.id,
         email: userProfile.email,
-        name: userProfile.full_name,
+        name: userProfile.name,
         role: userProfile.role
       }
     })
