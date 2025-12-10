@@ -11,9 +11,11 @@ export default function UserActivityPage() {
   const [user, setUser] = useState(null)
   const [activity, setActivity] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('companies') // 'companies' or 'enrichment'
+  const [activeTab, setActiveTab] = useState('companies') // 'companies', 'enrichment', or 'audit'
   const [enrichmentHistory, setEnrichmentHistory] = useState([])
   const [enrichmentLoading, setEnrichmentLoading] = useState(false)
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditLoading, setAuditLoading] = useState(false)
 
   useEffect(() => {
     if (userId) {
@@ -24,6 +26,12 @@ export default function UserActivityPage() {
   useEffect(() => {
     if (userId && activeTab === 'enrichment') {
       loadEnrichmentHistory()
+    }
+  }, [userId, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (userId && activeTab === 'audit') {
+      loadAuditLogs()
     }
   }, [userId, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -64,6 +72,24 @@ export default function UserActivityPage() {
     }
   }
 
+  const loadAuditLogs = async () => {
+    try {
+      setAuditLoading(true)
+      const response = await fetch(`/api/admin/audit-log?userId=${userId}&limit=100`)
+      const data = await response.json()
+
+      if (data.success) {
+        setAuditLogs(data.logs || [])
+      } else {
+        console.error('Failed to load audit logs:', data.error)
+      }
+    } catch (error) {
+      console.error('Error loading audit logs:', error)
+    } finally {
+      setAuditLoading(false)
+    }
+  }
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Never'
     return new Date(dateString).toLocaleString()
@@ -76,6 +102,28 @@ export default function UserActivityPage() {
       case 'PARTIAL': return 'bg-yellow-100 text-yellow-800'
       default: return 'bg-gray-100 text-gray-600'
     }
+  }
+
+  const getActionIcon = (action) => {
+    const icons = {
+      'CREATE': '➕',
+      'UPDATE': '✏️',
+      'DELETE': '🗑️',
+      'LOGIN': '🔐',
+      'LOGOUT': '🚪',
+      'ENRICH': '✨',
+      'EXPORT': '📤',
+      'SEARCH': '🔍',
+      'INVITE': '📧'
+    }
+    return icons[action] || '📝'
+  }
+
+  const formatMetadata = (metadata) => {
+    if (!metadata || typeof metadata !== 'object') return '-'
+    const entries = Object.entries(metadata)
+    if (entries.length === 0) return '-'
+    return entries.map(([key, value]) => `${key}: ${value}`).join(', ')
   }
 
   if (loading) {
@@ -209,6 +257,16 @@ export default function UserActivityPage() {
                   }`}
                 >
                   Enrichment History ({activity.enrichedCompanies})
+                </button>
+                <button
+                  onClick={() => setActiveTab('audit')}
+                  className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                    activeTab === 'audit'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Audit Log / Events
                 </button>
               </nav>
             </div>
@@ -351,6 +409,74 @@ export default function UserActivityPage() {
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               {Math.round((record.data_completeness || 0) * 100)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Audit Log Tab */}
+            {activeTab === 'audit' && (
+              <div className="p-6">
+                {auditLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading audit log...</p>
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">No audit log events found</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Date & Time
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Action
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Entity Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Entity ID
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Details
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {auditLogs.map((log) => (
+                          <tr key={log.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatDate(log.created_at)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <span className="mr-2">{getActionIcon(log.action)}</span>
+                                <span className="text-sm font-medium text-gray-900">{log.action}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {log.entity || '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500 font-mono">
+                              {log.entity_id ? (
+                                <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                  {log.entity_id.substring(0, 8)}...
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600">
+                              {formatMetadata(log.metadata)}
                             </td>
                           </tr>
                         ))}
