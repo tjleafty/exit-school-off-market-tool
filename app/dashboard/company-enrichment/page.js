@@ -39,6 +39,7 @@ export default function CompanyManagementPage() {
   const [activeTab, setActiveTab] = useState('search') // 'search', 'manage', or 'history'
   const [selectedHistoryCompanies, setSelectedHistoryCompanies] = useState(new Set())
   const [selectAllHistoryChecked, setSelectAllHistoryChecked] = useState(false)
+  const [searchMode, setSearchMode] = useState('google') // 'google' or 'clay'
 
   const [filters, setFilters] = useState({
     industry: '',
@@ -665,11 +666,46 @@ export default function CompanyManagementPage() {
           {/* Search Tab */}
           {activeTab === 'search' && (
             <div className="space-y-6">
-              {/* Search Bar */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="space-y-4">
-                  {/* Primary Search Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Search Mode Selector */}
+              <div className="bg-white shadow rounded-lg p-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-gray-700">Search Tool:</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSearchMode('google')}
+                      className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                        searchMode === 'google'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      🔍 Google Places Search
+                    </button>
+                    {userRole === 'ADMIN' && (
+                      <button
+                        onClick={() => setSearchMode('clay')}
+                        className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                          searchMode === 'clay'
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        🏺 Clay Search
+                        <span className="ml-2 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs rounded-full">BETA</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Google Places Search Interface */}
+              {searchMode === 'google' && (
+                <>
+                  {/* Search Bar */}
+                  <div className="bg-white shadow rounded-lg p-6">
+                    <div className="space-y-4">
+                      {/* Primary Search Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
                       <input
@@ -893,6 +929,117 @@ export default function CompanyManagementPage() {
                   </div>
                 )}
               </div>
+                </>
+              )}
+
+              {/* Clay Search Interface */}
+              {searchMode === 'clay' && (
+                <>
+                  {/* Clay Search Form */}
+                  <div className="bg-white shadow rounded-lg p-6">
+                    <div className="space-y-4">
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <span className="text-2xl">🏺</span>
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-purple-800">Clay Search (Beta)</h3>
+                            <p className="mt-1 text-sm text-purple-700">
+                              Advanced company search powered by Clay. This feature is currently in testing and only available to administrators.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Clay Search Fields - Placeholder */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                          <input
+                            type="text"
+                            placeholder="e.g., Tech Startups, SaaS Companies"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                          <input
+                            type="text"
+                            placeholder="e.g., Technology, Healthcare"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                          <input
+                            type="text"
+                            placeholder="e.g., San Francisco, CA"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Employee Range</label>
+                          <select className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="">Select range</option>
+                            <option value="1-10">1-10</option>
+                            <option value="11-50">11-50</option>
+                            <option value="51-200">51-200</option>
+                            <option value="201-500">201-500</option>
+                            <option value="501+">501+</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Search Button */}
+                      <div className="flex gap-4">
+                        <button
+                          disabled={true}
+                          className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          🔍 Search with Clay
+                        </button>
+                        <button
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+
+                      {/* Coming Soon Notice */}
+                      <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex">
+                          <div className="flex-shrink-0">
+                            <span className="text-xl">⚠️</span>
+                          </div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-yellow-800">Integration In Progress</h3>
+                            <p className="mt-1 text-sm text-yellow-700">
+                              The Clay search integration is currently being configured. Full functionality will be available soon.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clay Search Results Placeholder */}
+                  <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900">
+                        Clay Search Results
+                      </h3>
+                    </div>
+                    <div className="px-6 py-12 text-center">
+                      <div className="text-gray-400 text-6xl mb-4">🏺</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Ready for Clay Search</h3>
+                      <p className="text-gray-600">
+                        Enter search criteria above to discover companies using Clay&apos;s advanced data enrichment.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
