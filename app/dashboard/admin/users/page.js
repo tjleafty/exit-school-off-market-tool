@@ -64,7 +64,9 @@ export default function AdminUserManagementPage() {
           name: newUser.name,
           email: newUser.email,
           role: newUser.role,
-          status: newUser.creationType === 'manual' ? 'ACTIVE' : 'INVITED',
+          // Remove explicit status - let API default to REQUESTED for pending approval
+          // Admins can change to ACTIVE after creation to approve the account
+          status: newUser.creationType === 'manual' ? undefined : 'INVITED',
           method: newUser.creationType === 'manual' ? 'MANUAL' : 'INVITE',
           hasPassword: newUser.creationType === 'manual',
           password: newUser.creationType === 'manual' ? newUser.password : undefined,
@@ -155,10 +157,19 @@ export default function AdminUserManagementPage() {
   }
 
   const handleSuspendUser = async () => {
-    const newStatus = editingUser.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+    // Handle different status transitions
+    let newStatus
+    if (editingUser.status === 'ACTIVE') {
+      newStatus = 'SUSPENDED'
+    } else if (editingUser.status === 'REQUESTED' || editingUser.status === 'APPROVED' || editingUser.status === 'SUSPENDED') {
+      newStatus = 'ACTIVE'
+    } else {
+      newStatus = 'ACTIVE' // Default to ACTIVE for any other status
+    }
+
     const updatedUser = { ...editingUser, status: newStatus }
     setEditingUser(updatedUser)
-    
+
     try {
       const response = await fetch('/api/users', {
         method: 'PUT',
@@ -167,12 +178,12 @@ export default function AdminUserManagementPage() {
       })
 
       const data = await response.json()
-      
+
       if (data.user) {
         await fetchUsers() // Refresh user list
       }
     } catch (error) {
-      console.error('Error suspending user:', error)
+      console.error('Error updating user status:', error)
     }
   }
 
@@ -519,12 +530,18 @@ export default function AdminUserManagementPage() {
                       <button
                         onClick={handleSuspendUser}
                         className={`w-full px-4 py-2 rounded-md text-sm font-medium ${
-                          editingUser.status === 'ACTIVE' 
-                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
+                          editingUser.status === 'ACTIVE'
+                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
                             : 'bg-green-600 hover:bg-green-700 text-white'
                         }`}
                       >
-                        {editingUser.status === 'ACTIVE' ? 'Suspend User' : 'Reactivate User'}
+                        {editingUser.status === 'ACTIVE'
+                          ? 'Suspend User'
+                          : editingUser.status === 'REQUESTED'
+                          ? 'Approve Account'
+                          : editingUser.status === 'APPROVED'
+                          ? 'Activate Account'
+                          : 'Reactivate User'}
                       </button>
 
                       {editingUser.method !== 'SYSTEM' && (

@@ -75,6 +75,7 @@ export async function POST(request) {
     await new Promise(resolve => setTimeout(resolve, 500))
 
     // Update the users table with additional info using upsert
+    // Default to REQUESTED status unless explicitly set (admins can approve later)
     const { data, error } = await supabase
       .from('users')
       .upsert({
@@ -82,7 +83,7 @@ export async function POST(request) {
         email: body.email,
         full_name: body.name,
         role: body.role || 'USER',
-        status: body.status || 'ACTIVE',
+        status: body.status || 'REQUESTED', // Changed from 'ACTIVE' to 'REQUESTED'
         metadata: {
           features: body.features || {
             companySearch: true,
