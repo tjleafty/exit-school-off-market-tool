@@ -232,13 +232,28 @@ export default function AdminUserManagementPage() {
 
   const getStatusBadge = (status) => {
     const colors = {
-      ACTIVE: 'bg-green-100 text-green-800',
+      REQUESTED: 'bg-yellow-100 text-yellow-800',
       PENDING: 'bg-yellow-100 text-yellow-800',
+      APPROVED: 'bg-blue-100 text-blue-800',
       INVITED: 'bg-blue-100 text-blue-800',
+      ACTIVE: 'bg-green-100 text-green-800',
       SUSPENDED: 'bg-red-100 text-red-800',
       DISABLED: 'bg-red-100 text-red-800'
     }
     return colors[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      REQUESTED: 'Pending Approval',
+      PENDING: 'Pending',
+      APPROVED: 'Approved',
+      INVITED: 'Invited',
+      ACTIVE: 'Active',
+      SUSPENDED: 'Suspended',
+      DISABLED: 'Disabled'
+    }
+    return labels[status] || status
   }
 
   const getMethodBadge = (method) => {
@@ -457,6 +472,27 @@ export default function AdminUserManagementPage() {
                           <option value="ADMIN">Administrator</option>
                         </select>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Account Status</label>
+                        <select
+                          value={editingUser.status || 'REQUESTED'}
+                          onChange={(e) => setEditingUser({...editingUser, status: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="REQUESTED">Pending Approval</option>
+                          <option value="APPROVED">Approved (Not Active)</option>
+                          <option value="ACTIVE">Active</option>
+                          <option value="SUSPENDED">Suspended</option>
+                          <option value="DISABLED">Disabled</option>
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {editingUser.status === 'REQUESTED' && 'User cannot login until approved'}
+                          {editingUser.status === 'APPROVED' && 'User approved but not yet activated'}
+                          {editingUser.status === 'ACTIVE' && 'User can login and access the platform'}
+                          {editingUser.status === 'SUSPENDED' && 'User login is temporarily disabled'}
+                          {editingUser.status === 'DISABLED' && 'User account is disabled'}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -665,7 +701,7 @@ export default function AdminUserManagementPage() {
                             {user.role}
                           </span>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(user.status)}`}>
-                            {user.status}
+                            {getStatusLabel(user.status)}
                           </span>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getMethodBadge(user.method)}`}>
                             {user.method}
