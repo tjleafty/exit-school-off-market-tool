@@ -69,14 +69,28 @@ export async function POST(request) {
       .update({ last_seen: new Date().toISOString() })
       .eq('id', authData.user.id)
 
+    // Check if profile is complete
+    const profileComplete = !!(
+      userProfile.full_name &&
+      userProfile.phone &&
+      userProfile.company_name &&
+      userProfile.job_title
+    )
+
     return NextResponse.json({
       success: true,
       user: {
         id: userProfile.id,
         email: userProfile.email,
-        name: userProfile.name,
-        role: userProfile.role
-      }
+        name: userProfile.name || userProfile.full_name,
+        full_name: userProfile.full_name,
+        phone: userProfile.phone,
+        company_name: userProfile.company_name,
+        job_title: userProfile.job_title,
+        role: userProfile.role,
+        status: userProfile.status
+      },
+      profileComplete
     })
 
   } catch (error) {

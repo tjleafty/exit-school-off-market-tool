@@ -132,16 +132,28 @@ export async function PUT(request) {
   try {
     const body = await request.json()
 
-    const { data, error } = await supabase
+    // Build update object dynamically
+    const updateData = {
+      email: body.email,
+      full_name: body.full_name || body.name, // Support both full_name and name
+      role: body.role,
+      status: body.status,
+      updated_at: new Date().toISOString()
+    }
+
+    // Add optional contact fields if provided
+    if (body.phone !== undefined) updateData.phone = body.phone
+    if (body.company_name !== undefined) updateData.company_name = body.company_name
+    if (body.job_title !== undefined) updateData.job_title = body.job_title
+
+    // Handle metadata/features
+    if (body.features) {
+      updateData.metadata = { features: body.features }
+    }
+
+    const { data, error } = await supabaseAdmin
       .from('users')
-      .update({
-        email: body.email,
-        full_name: body.name, // Map name to full_name
-        role: body.role,
-        status: body.status,
-        metadata: body.features ? { features: body.features } : {},
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', body.id)
       .select()
 
@@ -150,7 +162,7 @@ export async function PUT(request) {
     // Map back to expected format
     const updatedUser = {
       ...data[0],
-      name: data[0].full_name,
+      name: data[0].full_name || data[0].name,
       features: data[0].metadata?.features || body.features
     }
 

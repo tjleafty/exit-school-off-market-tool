@@ -22,24 +22,25 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, name, status, role)
+  INSERT INTO public.users (id, email, name, full_name, status, role)
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
+    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', NEW.email),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.email),
     'REQUESTED', -- Default status for new users
     'USER'
   );
-  
+
   -- Create audit log
   PERFORM create_audit_log(
     NEW.id,
     'CREATED',
     'USER',
     NEW.id,
-    jsonb_build_object('email', NEW.email)
+    jsonb_build_object('email', NEW.email, 'name', COALESCE(NEW.raw_user_meta_data->>'name', NEW.email))
   );
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

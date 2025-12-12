@@ -453,12 +453,51 @@ export default function AdminUserManagementPage() {
                     <h4 className="text-sm font-medium text-gray-900 mb-3">User Information</h4>
                     <div className="space-y-3">
                       <div>
+                        <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                        <input
+                          type="text"
+                          value={editingUser.full_name || editingUser.name || ''}
+                          onChange={(e) => setEditingUser({...editingUser, full_name: e.target.value, name: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700">Email</label>
                         <input
                           type="email"
                           value={editingUser.email}
                           onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
                           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Phone</label>
+                        <input
+                          type="tel"
+                          value={editingUser.phone || ''}
+                          onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="(555) 123-4567"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Company</label>
+                        <input
+                          type="text"
+                          value={editingUser.company_name || ''}
+                          onChange={(e) => setEditingUser({...editingUser, company_name: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Acme Corporation"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Job Title</label>
+                        <input
+                          type="text"
+                          value={editingUser.job_title || ''}
+                          onChange={(e) => setEditingUser({...editingUser, job_title: e.target.value})}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Business Development Manager"
                         />
                       </div>
                       <div>

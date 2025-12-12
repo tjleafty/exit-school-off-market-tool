@@ -30,7 +30,13 @@ export default function LoginPage() {
       if (data.success && data.user) {
         // Store user info for role-based routing
         localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/dashboard')
+
+        // Redirect to profile completion if profile is incomplete
+        if (data.profileComplete === false) {
+          router.push('/complete-profile')
+        } else {
+          router.push('/dashboard')
+        }
       } else {
         setError(data.error || 'Invalid credentials')
       }
