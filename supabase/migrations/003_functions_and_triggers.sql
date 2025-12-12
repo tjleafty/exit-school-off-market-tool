@@ -21,13 +21,66 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Function to handle user registration
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_first_name TEXT;
+  v_last_name TEXT;
+  v_full_name TEXT;
+  v_phone TEXT;
 BEGIN
-  INSERT INTO public.users (id, email, name, full_name, status, role)
+  -- Extract name fields from OAuth metadata
+  v_first_name := COALESCE(
+    NEW.raw_user_meta_data->>'given_name',
+    NEW.raw_user_meta_data->>'first_name',
+    SPLIT_PART(NEW.raw_user_meta_data->>'name', ' ', 1)
+  );
+
+  v_last_name := COALESCE(
+    NEW.raw_user_meta_data->>'family_name',
+    NEW.raw_user_meta_data->>'last_name',
+    NULLIF(SPLIT_PART(NEW.raw_user_meta_data->>'name', ' ', 2), '')
+  );
+
+  v_full_name := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name',
+    CONCAT_WS(' ', v_first_name, v_last_name),
+    NEW.email
+  );
+
+  -- Extract phone from OAuth metadata
+  v_phone := COALESCE(
+    NEW.raw_user_meta_data->>'phone_number',
+    NEW.raw_user_meta_data->>'phone',
+    NEW.phone
+  );
+
+  INSERT INTO public.users (
+    id,
+    email,
+    name,
+    full_name,
+    first_name,
+    last_name,
+    phone,
+    street_address,
+    city,
+    state,
+    zip_code,
+    status,
+    role
+  )
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', NEW.email),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.email),
+    v_full_name,
+    v_full_name,
+    v_first_name,
+    v_last_name,
+    v_phone,
+    NEW.raw_user_meta_data->'address'->>'street_address',
+    NEW.raw_user_meta_data->'address'->>'locality',
+    NEW.raw_user_meta_data->'address'->>'region',
+    NEW.raw_user_meta_data->'address'->>'postal_code',
     'REQUESTED', -- Default status for new users
     'USER'
   );
@@ -38,7 +91,12 @@ BEGIN
     'CREATED',
     'USER',
     NEW.id,
-    jsonb_build_object('email', NEW.email, 'name', COALESCE(NEW.raw_user_meta_data->>'name', NEW.email))
+    jsonb_build_object(
+      'email', NEW.email,
+      'name', v_full_name,
+      'first_name', v_first_name,
+      'last_name', v_last_name
+    )
   );
 
   RETURN NEW;

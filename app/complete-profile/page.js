@@ -9,10 +9,16 @@ export default function CompleteProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [profileData, setProfileData] = useState({
+    first_name: '',
+    last_name: '',
     full_name: '',
     phone: '',
     company_name: '',
-    job_title: ''
+    job_title: '',
+    street_address: '',
+    city: '',
+    state: '',
+    zip_code: ''
   })
 
   useEffect(() => {
@@ -29,10 +35,16 @@ export default function CompleteProfilePage() {
 
       // Pre-fill with existing data if available
       setProfileData({
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
         full_name: userData.full_name || userData.name || '',
         phone: userData.phone || '',
         company_name: userData.company_name || '',
-        job_title: userData.job_title || ''
+        job_title: userData.job_title || '',
+        street_address: userData.street_address || '',
+        city: userData.city || '',
+        state: userData.state || '',
+        zip_code: userData.zip_code || ''
       })
 
       setLoading(false)
@@ -45,12 +57,15 @@ export default function CompleteProfilePage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!profileData.full_name) {
-      alert('Full name is required')
+    if (!profileData.first_name || !profileData.last_name) {
+      alert('First name and last name are required')
       return
     }
 
     setSaving(true)
+
+    // Generate full_name from first_name and last_name
+    const full_name = `${profileData.first_name} ${profileData.last_name}`.trim()
 
     try {
       const response = await fetch('/api/users', {
@@ -58,11 +73,17 @@ export default function CompleteProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: user.id,
-          name: profileData.full_name,
-          full_name: profileData.full_name,
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+          name: full_name,
+          full_name: full_name,
           phone: profileData.phone,
           company_name: profileData.company_name,
           job_title: profileData.job_title,
+          street_address: profileData.street_address,
+          city: profileData.city,
+          state: profileData.state,
+          zip_code: profileData.zip_code,
           email: user.email,
           role: user.role,
           status: user.status
@@ -117,20 +138,37 @@ export default function CompleteProfilePage() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="full_name"
-                name="full_name"
-                type="text"
-                required
-                value={profileData.full_name}
-                onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="John Doe"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="first_name"
+                  name="first_name"
+                  type="text"
+                  required
+                  value={profileData.first_name}
+                  onChange={(e) => setProfileData({ ...profileData, first_name: e.target.value })}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="John"
+                />
+              </div>
+              <div>
+                <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="last_name"
+                  name="last_name"
+                  type="text"
+                  required
+                  value={profileData.last_name}
+                  onChange={(e) => setProfileData({ ...profileData, last_name: e.target.value })}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Doe"
+                />
+              </div>
             </div>
 
             <div>
@@ -176,6 +214,73 @@ export default function CompleteProfilePage() {
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Business Development Manager"
               />
+            </div>
+
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Address (Optional)</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="street_address" className="block text-sm font-medium text-gray-700 mb-1">
+                    Street Address
+                  </label>
+                  <input
+                    id="street_address"
+                    name="street_address"
+                    type="text"
+                    value={profileData.street_address}
+                    onChange={(e) => setProfileData({ ...profileData, street_address: e.target.value })}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="123 Main Street"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+                      City
+                    </label>
+                    <input
+                      id="city"
+                      name="city"
+                      type="text"
+                      value={profileData.city}
+                      onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                      className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="San Francisco"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                      State
+                    </label>
+                    <input
+                      id="state"
+                      name="state"
+                      type="text"
+                      value={profileData.state}
+                      onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                      className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                      placeholder="CA"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="zip_code" className="block text-sm font-medium text-gray-700 mb-1">
+                    ZIP Code
+                  </label>
+                  <input
+                    id="zip_code"
+                    name="zip_code"
+                    type="text"
+                    value={profileData.zip_code}
+                    onChange={(e) => setProfileData({ ...profileData, zip_code: e.target.value })}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                    placeholder="94102"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

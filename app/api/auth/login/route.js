@@ -69,12 +69,10 @@ export async function POST(request) {
       .update({ last_seen: new Date().toISOString() })
       .eq('id', authData.user.id)
 
-    // Check if profile is complete
+    // Check if profile is complete (first_name and last_name are required)
     const profileComplete = !!(
-      userProfile.full_name &&
-      userProfile.phone &&
-      userProfile.company_name &&
-      userProfile.job_title
+      userProfile.first_name &&
+      userProfile.last_name
     )
 
     return NextResponse.json({
@@ -82,11 +80,17 @@ export async function POST(request) {
       user: {
         id: userProfile.id,
         email: userProfile.email,
+        first_name: userProfile.first_name,
+        last_name: userProfile.last_name,
         name: userProfile.name || userProfile.full_name,
         full_name: userProfile.full_name,
         phone: userProfile.phone,
         company_name: userProfile.company_name,
         job_title: userProfile.job_title,
+        street_address: userProfile.street_address,
+        city: userProfile.city,
+        state: userProfile.state,
+        zip_code: userProfile.zip_code,
         role: userProfile.role,
         status: userProfile.status
       },

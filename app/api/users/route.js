@@ -142,9 +142,15 @@ export async function PUT(request) {
     }
 
     // Add optional contact fields if provided
+    if (body.first_name !== undefined) updateData.first_name = body.first_name
+    if (body.last_name !== undefined) updateData.last_name = body.last_name
     if (body.phone !== undefined) updateData.phone = body.phone
     if (body.company_name !== undefined) updateData.company_name = body.company_name
     if (body.job_title !== undefined) updateData.job_title = body.job_title
+    if (body.street_address !== undefined) updateData.street_address = body.street_address
+    if (body.city !== undefined) updateData.city = body.city
+    if (body.state !== undefined) updateData.state = body.state
+    if (body.zip_code !== undefined) updateData.zip_code = body.zip_code
 
     // Handle metadata/features
     if (body.features) {

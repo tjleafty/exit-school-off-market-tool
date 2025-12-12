@@ -452,14 +452,25 @@ export default function AdminUserManagementPage() {
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-3">User Information</h4>
                     <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                        <input
-                          type="text"
-                          value={editingUser.full_name || editingUser.name || ''}
-                          onChange={(e) => setEditingUser({...editingUser, full_name: e.target.value, name: e.target.value})}
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">First Name</label>
+                          <input
+                            type="text"
+                            value={editingUser.first_name || ''}
+                            onChange={(e) => setEditingUser({...editingUser, first_name: e.target.value})}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                          <input
+                            type="text"
+                            value={editingUser.last_name || ''}
+                            onChange={(e) => setEditingUser({...editingUser, last_name: e.target.value})}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Email</label>
@@ -499,6 +510,41 @@ export default function AdminUserManagementPage() {
                           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Business Development Manager"
                         />
+                      </div>
+                      <div className="pt-2 border-t border-gray-200">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">Address</label>
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={editingUser.street_address || ''}
+                            onChange={(e) => setEditingUser({...editingUser, street_address: e.target.value})}
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="Street Address"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={editingUser.city || ''}
+                              onChange={(e) => setEditingUser({...editingUser, city: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              placeholder="City"
+                            />
+                            <input
+                              type="text"
+                              value={editingUser.state || ''}
+                              onChange={(e) => setEditingUser({...editingUser, state: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                              placeholder="State"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            value={editingUser.zip_code || ''}
+                            onChange={(e) => setEditingUser({...editingUser, zip_code: e.target.value})}
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="ZIP Code"
+                          />
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Role</label>
