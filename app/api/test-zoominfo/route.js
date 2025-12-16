@@ -13,10 +13,10 @@ export async function GET() {
   try {
     console.log('=== ZOOMINFO JWT AUTHENTICATION TEST ===')
 
-    // Test 1: Retrieve JWT credentials from database
+    // Test 1: Retrieve JWT credentials from database (support both schemas)
     const { data: apiKeyData, error: keyError } = await supabase
       .from('api_keys')
-      .select('username, client_id, encrypted_key, status')
+      .select('username, client_id, encrypted_key, additional_config, status')
       .eq('service', 'zoominfo')
       .single()
 
@@ -29,18 +29,34 @@ export async function GET() {
       return NextResponse.json(results)
     }
 
+    // Extract credentials - support both old (separate columns) and new (additional_config) schemas
+    let username, clientId, privateKey
+
+    if (apiKeyData.additional_config) {
+      console.log('Using credentials from additional_config JSON')
+      username = apiKeyData.additional_config.username
+      clientId = apiKeyData.additional_config.password || apiKeyData.additional_config.client_id
+      privateKey = apiKeyData.encrypted_key
+    } else {
+      console.log('Using credentials from separate columns')
+      username = apiKeyData.username
+      clientId = apiKeyData.client_id
+      privateKey = apiKeyData.encrypted_key
+    }
+
     // Check all three required fields
-    const hasUsername = !!(apiKeyData.username && apiKeyData.username.trim())
-    const hasClientId = !!(apiKeyData.client_id && apiKeyData.client_id.trim())
-    const hasPrivateKey = !!(apiKeyData.encrypted_key && apiKeyData.encrypted_key.trim())
+    const hasUsername = !!(username && username.trim())
+    const hasClientId = !!(clientId && clientId.trim())
+    const hasPrivateKey = !!(privateKey && privateKey.trim())
 
     results.tests.push({
       test: 'Credentials Check',
       success: hasUsername && hasClientId && hasPrivateKey,
-      username: hasUsername ? apiKeyData.username : 'MISSING',
-      clientId: hasClientId ? apiKeyData.client_id.substring(0, 10) + '...' : 'MISSING',
-      privateKey: hasPrivateKey ? 'Present (starts with: ' + apiKeyData.encrypted_key.substring(0, 20) + '...)' : 'MISSING',
-      status: apiKeyData.status
+      username: hasUsername ? username : 'MISSING',
+      clientId: hasClientId ? clientId.substring(0, 10) + '...' : 'MISSING',
+      privateKey: hasPrivateKey ? 'Present (starts with: ' + privateKey.substring(0, 20) + '...)' : 'MISSING',
+      status: apiKeyData.status,
+      schemaType: apiKeyData.additional_config ? 'additional_config (JSON)' : 'separate columns'
     })
 
     if (!hasUsername || !hasClientId || !hasPrivateKey) {
@@ -48,7 +64,7 @@ export async function GET() {
         test: 'Overall',
         success: false,
         error: 'Missing required credentials',
-        recommendation: 'Go to Settings and enter Username, Client ID, and Private Key for ZoomInfo'
+        recommendation: 'Go to Settings and enter Username, Client ID/Password, and Private Key for ZoomInfo'
       })
       return NextResponse.json(results)
     }
@@ -59,9 +75,9 @@ export async function GET() {
 
     let accessToken
     const tokenResult = await authClient.getAccessTokenViaPKI(
-      apiKeyData.username,
-      apiKeyData.client_id,
-      apiKeyData.encrypted_key
+      username,
+      clientId,
+      privateKey
     )
 
     console.log('JWT token result type:', typeof tokenResult)

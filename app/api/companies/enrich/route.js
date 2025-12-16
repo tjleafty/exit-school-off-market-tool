@@ -248,10 +248,10 @@ export async function POST(request) {
 async function callZoomInfoAPI(company) {
   console.log('callZoomInfoAPI: Starting for company:', company.name)
 
-  // Get ZoomInfo credentials from database (username, client_id, private_key)
+  // Get ZoomInfo credentials from database (supports both schema versions)
   const { data: apiKeyData, error: keyError } = await supabase
     .from('api_keys')
-    .select('username, client_id, encrypted_key')
+    .select('username, client_id, encrypted_key, additional_config, service_name')
     .eq('service', 'zoominfo')
     .eq('status', 'Connected')
     .single()
@@ -260,22 +260,71 @@ async function callZoomInfoAPI(company) {
     hasUsername: !!apiKeyData?.username,
     hasClientId: !!apiKeyData?.client_id,
     hasPrivateKey: !!apiKeyData?.encrypted_key,
+    hasAdditionalConfig: !!apiKeyData?.additional_config,
     error: keyError
   })
 
-  if (!apiKeyData?.username || !apiKeyData?.client_id || !apiKeyData?.encrypted_key) {
-    throw new Error('ZoomInfo credentials not fully configured (requires username, client_id, and private_key)')
+  if (keyError) {
+    console.error('Database error fetching ZoomInfo credentials:', keyError)
+    throw new Error(`Failed to fetch ZoomInfo credentials: ${keyError.message}`)
   }
 
-  const { username, client_id, encrypted_key: privateKey } = apiKeyData
-  console.log('Using ZoomInfo JWT auth for user:', username, 'with client_id:', client_id)
+  if (!apiKeyData) {
+    throw new Error('No ZoomInfo credentials found in database')
+  }
+
+  // Extract credentials - support both old (separate columns) and new (additional_config) schemas
+  let username, clientId, privateKey
+
+  // Try new schema first (additional_config)
+  if (apiKeyData.additional_config) {
+    console.log('Using credentials from additional_config JSON')
+    username = apiKeyData.additional_config.username
+    // Password might be stored as client_id in additional_config
+    clientId = apiKeyData.additional_config.password || apiKeyData.additional_config.client_id
+    privateKey = apiKeyData.encrypted_key
+
+    console.log('Extracted from additional_config:', {
+      hasUsername: !!username,
+      hasClientId: !!clientId,
+      usernameValue: username,
+      clientIdLength: clientId?.length || 0
+    })
+  } else {
+    // Fall back to old schema (separate columns)
+    console.log('Using credentials from separate columns')
+    username = apiKeyData.username
+    clientId = apiKeyData.client_id
+    privateKey = apiKeyData.encrypted_key
+  }
+
+  console.log('Final credentials check:', {
+    hasUsername: !!username,
+    hasClientId: !!clientId,
+    hasPrivateKey: !!privateKey,
+    usernameValue: username,
+    clientIdLength: clientId?.length || 0,
+    privateKeyLength: privateKey?.length || 0,
+    privateKeyStartsWith: privateKey?.substring(0, 27) || 'N/A'
+  })
+
+  if (!username || !clientId || !privateKey) {
+    throw new Error('ZoomInfo credentials not fully configured (requires username, client_id/password, and private_key)')
+  }
+
+  console.log('Using ZoomInfo JWT auth for user:', username, 'with client_id length:', clientId?.length)
 
   // Generate JWT token using ZoomInfo's PKI authentication
   const authClient = require('zoominfo-api-auth-client')
   let accessToken
 
   console.log('Requesting JWT token from ZoomInfo...')
-  const tokenResult = await authClient.getAccessTokenViaPKI(username, client_id, privateKey)
+  console.log('Auth parameters:', {
+    username: username,
+    clientIdLength: clientId?.length,
+    privateKeyLength: privateKey?.length
+  })
+  const tokenResult = await authClient.getAccessTokenViaPKI(username, clientId, privateKey)
 
   // Check if the result is an error object (library returns error instead of throwing)
   if (tokenResult && tokenResult.isAxiosError) {
